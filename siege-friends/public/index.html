@@ -1,0 +1,2896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Structure Master — Competitive Siege & War Arena</title>
+<style>
+  :root {
+    --bg-panel: rgba(15, 23, 42, 0.92);
+    --bg-card: rgba(30, 41, 59, 0.8);
+    --border: rgba(148, 163, 184, 0.22);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --blue-team: #38bdf8;
+    --red-team: #f87171;
+    --gold: #fbbf24;
+    --success: #10b981;
+    --danger: #ef4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  body { overflow: hidden; background: #0b1120; color: var(--text-main); user-select: none; }
+  canvas { display: block; }
+
+  /* Top Match HUD */
+  #topbar {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg-panel); backdrop-filter: blur(14px);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 9px 18px; z-index: 100;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
+  }
+  .stat-box { display: flex; flex-direction: column; align-items: center; min-width: 72px; }
+  .stat-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+  .stat-val { font-size: 15px; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .divider-v { width: 1px; height: 30px; background: var(--border); }
+
+  .hp-bar-wrap { width: 98px; height: 7px; background: #1e293b; border-radius: 99px; overflow: hidden; margin-top: 4px; border: 1px solid rgba(255,255,255,0.1); }
+  .hp-bar-fill { height: 100%; transition: width 0.2s ease; }
+
+  /* Left Control Sidebar */
+  #ui {
+    position: fixed; top: 14px; left: 14px; z-index: 100;
+    background: var(--bg-panel); backdrop-filter: blur(14px);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; width: 325px; max-height: calc(100vh - 28px);
+    overflow-y: auto; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
+  }
+  #ui::-webkit-scrollbar { width: 5px; }
+  #ui::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.3); border-radius: 4px; }
+
+  .brand { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .brand h3 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+  .badge { font-size: 10px; padding: 3px 8px; border-radius: 999px; font-weight: 700; letter-spacing: 0.04em; }
+  .badge-build { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+  .badge-destroy { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+
+  button {
+    padding: 8px 10px; border: 1px solid transparent; border-radius: 8px;
+    cursor: pointer; font-weight: 600; font-size: 11.5px; color: white;
+    transition: all 0.15s ease; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.active { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
+
+  .phase-btn { width: 100%; padding: 10px; font-size: 13px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #dc2626); margin-bottom: 6px; }
+  .add-btn { background: linear-gradient(135deg, #0ea5e9, #2563eb); width: 100%; padding: 9px; font-size: 12.5px; }
+  .secondary-btn { background: #334155; border: 1px solid var(--border); }
+
+  .panel {
+    margin-top: 9px; padding: 10px; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+  .panel h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 7px; display: flex; justify-content: space-between; align-items: center; }
+
+  /* Tabs inside Build Phase */
+  .tab-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .tab-btn { background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border); color: var(--text-muted); padding: 8px; font-weight: 700; }
+  .tab-btn.active { background: rgba(56, 189, 248, 0.2); border-color: var(--blue-team); color: var(--text-main); }
+
+  select, input[type="range"], input[type="text"], input[type="password"] { width: 100%; accent-color: var(--blue-team); }
+  select, input[type="text"], input[type="password"] {
+    background: #0f172a; color: var(--text-main); border: 1px solid var(--border);
+    padding: 6px 8px; border-radius: 7px; font-size: 12px; outline: none;
+  }
+
+  .mp-row { display: flex; gap: 6px; margin-top: 6px; }
+  .mp-status { font-size: 10.5px; color: #38bdf8; margin-top: 5px; word-break: break-word; }
+
+  .shape-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
+  .shape-btn { background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border); color: var(--text-main); }
+  .shape-btn.active { background: rgba(56, 189, 248, 0.2); border-color: var(--blue-team); color: var(--blue-team); }
+
+  .mat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .material-btn { padding: 6px 4px; font-size: 10.5px; flex-direction: column; gap: 2px; border: 1px solid rgba(255,255,255,0.15); }
+  .material-btn small { font-size: 9px; opacity: 0.85; font-weight: 500; }
+  .material-btn.active { outline: 2px solid #fff; }
+
+  /* Unit Squad Cards */
+  .unit-card {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 9px; border-radius: 8px; background: rgba(15, 23, 42, 0.78);
+    border: 1px solid var(--border); margin-bottom: 6px;
+  }
+  .unit-info { display: flex; flex-direction: column; max-width: 195px; }
+  .unit-title { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+  .unit-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; line-height: 1.3; }
+  .unit-buy-btn { background: linear-gradient(135deg, #10b981, #059669); padding: 6px 9px; font-size: 11px; font-weight: 800; min-width: 62px; }
+
+  .roster-pill-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+  .roster-pill {
+    font-size: 10.5px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #e0f2fe; padding: 3px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .roster-pill button { padding: 0 4px; font-size: 10px; background: rgba(239,68,68,0.6); border-radius: 4px; }
+
+  .tactic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .tactic-btn { background: rgba(15, 23, 42, 0.78); border: 1px solid var(--border); font-size: 11px; padding: 6px 4px; }
+  .tactic-btn.active { background: rgba(251, 191, 36, 0.2); border-color: var(--gold); color: var(--gold); }
+
+  .weapon-card {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; border-radius: 8px; background: rgba(15, 23, 42, 0.75);
+    border: 1px solid var(--border); margin-bottom: 6px; cursor: pointer; transition: 0.15s;
+  }
+  .weapon-card:hover { border-color: rgba(255,255,255,0.35); }
+  .weapon-card.active { border-color: var(--gold); background: rgba(251, 191, 36, 0.12); }
+  .weapon-info { display: flex; flex-direction: column; }
+  .weapon-title { font-size: 12px; font-weight: 700; }
+  .weapon-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .weapon-cost { font-size: 11.5px; font-weight: 800; color: var(--gold); }
+
+  .slider-row { margin-bottom: 6px; font-size: 11.5px; }
+  .slider-header { display: flex; justify-content: space-between; color: var(--text-muted); margin-bottom: 2px; }
+  .slider-header span { color: var(--text-main); font-weight: 600; }
+
+  .action-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 7px; }
+
+  /* Controls Card Bottom Right */
+  #instructions {
+    position: fixed; bottom: 14px; right: 14px;
+    background: var(--bg-panel); backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 11px 13px; font-size: 11px; line-height: 1.6;
+    max-width: 315px; z-index: 99; color: var(--text-muted);
+  }
+  #instructions strong { color: var(--text-main); }
+  kbd {
+    background: #1e293b; border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 5px; font-size: 10px; color: #e2e8f0; font-family: monospace;
+  }
+
+  /* Match Result Modal */
+  #modalOverlay {
+    position: fixed; inset: 0; background: rgba(2, 6, 23, 0.78);
+    backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;
+    z-index: 300;
+  }
+  .modal-card {
+    background: #0f172a; border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px 32px; max-width: 420px; width: 90%; text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  }
+  .modal-card h2 { font-size: 22px; margin-bottom: 8px; }
+  .modal-stats {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; margin: 16px 0; font-size: 13px; line-height: 1.8; text-align: left;
+  }
+
+  #loading {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: var(--bg-panel); border: 1px solid var(--border);
+    padding: 28px 36px; border-radius: 14px; z-index: 200; text-align: center;
+  }
+  .hidden { display: none !important; }
+</style>
+
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.160.0",
+    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/",
+    "cannon-es": "https://esm.sh/cannon-es@0.20.0"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="loading">
+  <h3>⚔️ Structure Master: Siege & War Arena</h3>
+  <p id="loadStatus" style="margin-top:8px; color:#94a3b8; font-size:13px;">Generating expanded valley map, barracks & warbands...</p>
+</div>
+
+<!-- Top Competitive HUD -->
+<div id="topbar" class="hidden">
+  <div class="stat-box">
+    <span class="stat-label">Score & Barracks</span>
+    <span class="stat-val" id="hud-mode" style="color:#38bdf8; font-size:12.5px;">0 PTS • 0 BRK</span>
+  </div>
+  <div class="divider-v"></div>
+  <div class="stat-box">
+    <span class="stat-label">Status</span>
+    <span class="stat-val" id="hud-phase" style="color:#34d399;">OPEN BUILD</span>
+  </div>
+  <div class="divider-v"></div>
+  <div class="stat-box">
+    <span class="stat-label">Next AI Raid</span>
+    <span class="stat-val" id="hud-timer" style="color:#f59e0b;">Raid 30s</span>
+  </div>
+  <div class="divider-v"></div>
+  <div class="stat-box">
+    <span class="stat-label">Credits</span>
+    <span class="stat-val" id="hud-budget" style="color:#fbbf24;">$4,500</span>
+  </div>
+  <div class="divider-v"></div>
+  <div class="stat-box">
+    <span class="stat-label" style="color:#38bdf8;">Blue Core</span>
+    <span class="stat-val" id="hud-blue-hp">100%</span>
+    <div class="hp-bar-wrap"><div class="hp-bar-fill" id="bar-blue-hp" style="width:100%; background:#38bdf8;"></div></div>
+  </div>
+  <div class="divider-v"></div>
+  <div class="stat-box">
+    <span class="stat-label" style="color:#f87171;">Red Core</span>
+    <span class="stat-val" id="hud-red-hp">100%</span>
+    <div class="hp-bar-wrap"><div class="hp-bar-fill" id="bar-red-hp" style="width:100%; background:#f87171;"></div></div>
+  </div>
+  <div class="divider-v"></div>
+  <div class="stat-box">
+    <span class="stat-label">Armies</span>
+    <span class="stat-val" id="hud-armies" style="font-size:13px;"><span style="color:#38bdf8;">0</span> vs <span style="color:#f87171;">0</span></span>
+  </div>
+</div>
+
+<!-- Left Sidebar -->
+<div id="ui" class="hidden">
+  <div class="brand">
+    <h3>⚔️ Siege Commander</h3>
+    <span class="badge badge-build" id="phase-badge">CONTINUOUS SIEGE</span>
+  </div>
+
+  <button class="phase-btn" id="launchRaidBtn" onclick="launchManualPlayerRaid()">⚔️ Launch Warband Raid</button>
+
+  <!-- FRIEND ROOM WEBSOCKET CONNECTION -->
+  <div class="panel">
+    <h4>🔒 Friend Room (WebSocket) <span id="ws-badge" style="color:#94a3b8;">Offline</span></h4>
+    <div class="mp-row">
+      <input type="text" id="friendAliasInput" placeholder="Nickname (e.g. Kasun)" maxlength="20">
+      <input type="password" id="friendCodeInput" placeholder="Friend Code">
+    </div>
+    <div class="mp-row">
+      <button class="add-btn" id="connectFriendWsBtn" onclick="handleFriendWsConnect()">🔌 Join Friend Room</button>
+    </div>
+  </div>
+
+  <!-- ONLINE 1v1 P2P CONNECTION -->
+  <div class="panel">
+    <h4>🌐 2-Player Online (P2P) <span id="net-role" style="color:#34d399;">Solo AI</span></h4>
+    <div class="mp-row">
+      <button class="secondary-btn" style="flex:1;" onclick="hostOnlineMatch()">📡 Host Room</button>
+      <button class="secondary-btn" style="flex:1;" onclick="joinOnlineMatch()">🔗 Join Room</button>
+    </div>
+    <div class="mp-row">
+      <input type="text" id="roomCodeInput" placeholder="Paste friend's Room ID...">
+    </div>
+    <div class="mp-status" id="mpStatus">Build multiple Barracks & earn points by raiding enemy camps!</div>
+  </div>
+
+  <!-- MAIN MODE TABS (ALWAYS AVAILABLE) -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-fortress" onclick="switchBuildTab('fortress')">🏰 Base & Barracks</button>
+    <button class="tab-btn" id="tab-barracks" onclick="switchBuildTab('barracks')">⚔️ Warband (<span id="squad-count-badge">0</span>)</button>
+  </div>
+  <div class="tab-bar" style="margin-top:5px;">
+    <button class="tab-btn" id="tab-artillery" onclick="switchBuildTab('artillery')">🎯 Artillery & Orders</button>
+    <button class="tab-btn" onclick="resetMatch()">🔄 Reset Map</button>
+  </div>
+
+  <!-- SUB-TAB 1: FORTRESS & MULTIPLE BARRACKS -->
+  <div id="fortressSubPanel">
+    <div class="panel">
+      <h4>📂 Defensive Blueprints</h4>
+      <select id="templateSelect" onchange="loadTemplate(this.value)">
+        <option value="">-- Select Starter Fortress --</option>
+        <option value="bunker">🛡️ Reinforced Bunker ($1,150)</option>
+        <option value="citadel">🏰 Layered Wall Citadel ($1,450)</option>
+        <option value="gatehouse">⛩️ Chokepoint Gatehouse ($1,220)</option>
+      </select>
+    </div>
+
+    <div class="panel">
+      <h4>🧩 Block Geometry</h4>
+      <div class="shape-grid">
+        <button class="shape-btn active" id="s-box" onclick="setShape('box')">⬛ Beam / Wall</button>
+        <button class="shape-btn" id="s-cylinder" onclick="setShape('cylinder')">🛢️ Pillar</button>
+        <button class="shape-btn" id="s-sphere" onclick="setShape('sphere')">⚫ Dome / Orb</button>
+        <button class="shape-btn" id="s-cone" onclick="setShape('cone')">🔺 Deflector</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4>🧱 Structure / Barracks <span id="piece-cost-preview" style="color:#fbbf24;">$110</span></h4>
+      <div class="mat-grid">
+        <button class="material-btn active" id="mat-wood" style="background:#854d0e;" onclick="setMaterial('wood')">Wood<small>$80 • 100HP</small></button>
+        <button class="material-btn" id="mat-stone" style="background:#475569;" onclick="setMaterial('stone')">Stone<small>$140 • 170HP</small></button>
+        <button class="material-btn" id="mat-steel" style="background:#64748b;" onclick="setMaterial('steel')">Steel<small>$220 • 280HP</small></button>
+        <button class="material-btn" id="mat-glass" style="background:#0284c7;" onclick="setMaterial('glass')">Glass<small>$50 • 45HP</small></button>
+        <button class="material-btn" id="mat-concrete" style="background:#52525b;" onclick="setMaterial('concrete')">Concrete<small>$170 • 220HP</small></button>
+        <button class="material-btn" id="mat-plastic" style="background:#be123c;" onclick="setMaterial('plastic')">Polymer<small>$65 • 75HP</small></button>
+        <button class="material-btn" id="mat-barracks" style="background:#b45309; grid-column: span 3;" onclick="setMaterial('barracks')">🏰 Barracks Building<small>$190 • 260HP • Worth +120 Raid Pts</small></button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4>📐 Dimensions</h4>
+      <div class="slider-row">
+        <div class="slider-header">Width (X) <span id="w-val">1.0 m</span></div>
+        <input type="range" id="sizeW" min="0.5" max="4.5" step="0.5" value="1" oninput="updateSize()">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header">Height (Y) <span id="h-val">1.0 m</span></div>
+        <input type="range" id="sizeH" min="0.5" max="4.5" step="0.5" value="1" oninput="updateSize()">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header">Depth (Z) <span id="d-val">1.0 m</span></div>
+        <input type="range" id="sizeD" min="0.5" max="4.5" step="0.5" value="1" oninput="updateSize()">
+      </div>
+    </div>
+
+    <div style="margin-top:8px;">
+      <button class="add-btn" id="spawnBtn" onclick="spawnPiece()">➕ Deploy Piece ($110)</button>
+      <div class="action-row">
+        <button class="secondary-btn" onclick="refundSelected()">💰 Sell</button>
+        <button class="secondary-btn" onclick="saveStructure()">💾 Save</button>
+        <button class="secondary-btn" onclick="syncMyBaseToServer()">☁️ Sync</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB-TAB 2: BARRACKS & ARMY RECRUITMENT -->
+  <div id="barracksSubPanel" class="hidden">
+    <div class="panel">
+      <h4>🛡️ Recruit Squads (More Barracks = Larger Cap)</h4>
+
+      <div class="unit-card">
+        <div class="unit-info">
+          <span class="unit-title">🗡️ Footmen (x4)</span>
+          <span class="unit-sub">Tanky frontline • Beats Cavalry • Weak vs Mortars & Archers</span>
+        </div>
+        <button class="unit-buy-btn" id="buy-footman" onclick="buySquad('footman')">$120</button>
+      </div>
+
+      <div class="unit-card">
+        <div class="unit-info">
+          <span class="unit-title">🏹 Archers (x4)</span>
+          <span class="unit-sub">Long-range volley • Beats Footmen • Fragile vs Cavalry</span>
+        </div>
+        <button class="unit-buy-btn" id="buy-archer" onclick="buySquad('archer')">$150</button>
+      </div>
+
+      <div class="unit-card">
+        <div class="unit-info">
+          <span class="unit-title">🐏 Siege Ram (x1)</span>
+          <span class="unit-sub">Massive wall, Barracks & Core breaker • Slow</span>
+        </div>
+        <button class="unit-buy-btn" id="buy-ram" onclick="buySquad('ram')">$220</button>
+      </div>
+
+      <div class="unit-card" style="margin-bottom:0;">
+        <div class="unit-info">
+          <span class="unit-title">🐎 Cavalry (x3)</span>
+          <span class="unit-sub">Fast flankers • Crushes Archers • Weak vs Footmen</span>
+        </div>
+        <button class="unit-buy-btn" id="buy-cavalry" onclick="buySquad('cavalry')">$200</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4>📐 Deployment Formation</h4>
+      <div class="tactic-grid">
+        <button class="tactic-btn active" id="form-line" onclick="setFormation('line')">Line</button>
+        <button class="tactic-btn" id="form-wedge" onclick="setFormation('wedge')">Wedge</button>
+        <button class="tactic-btn" id="form-spread" onclick="setFormation('spread')">Spread</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4>🚩 Army Stance</h4>
+      <div class="tactic-grid">
+        <button class="tactic-btn active" id="stance-aggressive" onclick="setStance('aggressive')">⚔️ Advance</button>
+        <button class="tactic-btn" id="stance-defensive" onclick="setStance('defensive')">🛡️ Guard</button>
+        <button class="tactic-btn" id="stance-hold" onclick="setStance('hold')">✋ Hold</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4>📋 Enlisted Warband <span id="total-troops-label" style="color:#38bdf8;">0 Troops</span></h4>
+      <div class="roster-pill-row" id="enlistedRoster">
+        <span style="font-size:11px; color:var(--text-muted);">No squads recruited yet.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB-TAB 3: ARTILLERY & FIELD ORDERS -->
+  <div id="destroyControls" class="hidden">
+    <div class="panel">
+      <h4>🚩 Army Field Orders (Right-Click Ground to Rally)</h4>
+      <div class="tactic-grid">
+        <button class="tactic-btn active" id="live-stance-aggressive" onclick="setStance('aggressive')">⚔️ Advance</button>
+        <button class="tactic-btn" id="live-stance-hold" onclick="setStance('hold')">✋ Hold</button>
+        <button class="tactic-btn" id="live-stance-retreat" onclick="setStance('retreat')">🏳️ Retreat</button>
+      </div>
+      <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+        <span id="rallyStatusText" style="font-size:10.5px; color:#94a3b8;">Rally Point: Auto-March</span>
+        <button class="secondary-btn" style="padding:3px 7px; font-size:10px;" onclick="clearRally()">Clear Rally</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4>🎯 Artillery & Ordnance</h4>
+      <div class="weapon-card active" id="w-cannon" onclick="selectWeapon('cannon')">
+        <div class="weapon-info">
+          <span class="weapon-title">💥 Kinetic Cannon</span>
+          <span class="weapon-sub">Breaches Barracks & kills direct hits</span>
+        </div>
+        <span class="weapon-cost">$150</span>
+      </div>
+      <div class="weapon-card" id="w-mortar" onclick="selectWeapon('mortar')">
+        <div class="weapon-info">
+          <span class="weapon-title">💣 Explosive Mortar</span>
+          <span class="weapon-sub">Radial blast wipes infantry squads</span>
+        </div>
+        <span class="weapon-cost">$300</span>
+      </div>
+      <div class="weapon-card" id="w-seismic" onclick="selectWeapon('seismic')">
+        <div class="weapon-info">
+          <span class="weapon-title">🌋 Seismic Charge</span>
+          <span class="weapon-sub">Shakes walls & stuns enemy troops</span>
+        </div>
+        <span class="weapon-cost">$450</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4>🎚️ Launch Power</h4>
+      <div class="slider-row">
+        <div class="slider-header">Velocity / Charge <span id="power-val">80%</span></div>
+        <input type="range" id="firePower" min="45" max="115" step="5" value="80" oninput="updatePower()">
+      </div>
+    </div>
+
+    <div style="margin-top:8px;">
+      <button class="phase-btn" id="fireBtn" onclick="fireSelectedWeapon()">🚀 Fire Ordnance ($150)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Controls Helper -->
+<div id="instructions" class="hidden">
+  <strong>Base & Barracks:</strong><br>
+  • Build multiple <strong>Barracks</strong> across the large valley map<br>
+  • <strong>Left-Drag</strong> piece to move • <strong>Right-Drag</strong> to rotate<br>
+  • <kbd>Q</kbd>/<kbd>E</kbd>: Height • <kbd>R</kbd>/<kbd>T</kbd>/<kbd>F</kbd>: Rotate • <kbd>Del</kbd>: Sell<br>
+  <strong>Raids & Defense:</strong><br>
+  • AI & players raid at random intervals — earn <strong>Points</strong> by hitting enemy Barracks!<br>
+  • <kbd>Space</kbd>: Fire Artillery • <strong>Right-Click Ground:</strong> Set Rally Flag
+</div>
+
+<!-- Match Over Modal -->
+<div id="modalOverlay" class="hidden">
+  <div class="modal-card">
+    <h2 id="modalTitle">🏆 Victory!</h2>
+    <p id="modalSubtitle" style="color:#94a3b8; font-size:13px;">Enemy Command Core neutralized.</p>
+    <div class="modal-stats" id="modalStats"></div>
+    <button class="add-btn" onclick="resetMatch()">⚔️ Continue / Reset Map</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as CANNON from 'cannon-es';
+
+let scene, camera, renderer, controls, world;
+let phase = 'destroy'; // Continuous open-build + raid mode
+let budget = 4500;
+const STARTING_BUDGET = 4500;
+
+// Expanded Map Dimensions (Large Valley Arena for Multiple Barracks & Outposts)
+const MAP_HALF_W = 30;   // 60m total width (was 18)
+const MAP_HALF_D = 16;   // 32m total depth (was 9)
+const BUILD_MIN_ABS_X = 3.0;
+const BUILD_MAX_ABS_X = 28.5;
+
+let bluePieces = [], blueBodies = [];
+let redPieces = [], redBodies = [];
+let projectiles = [];
+let arrows = [];
+let effects = [];
+let debris = [];
+
+let blueCoreMesh, blueCoreBody, blueCoreHP = 100;
+let redCoreMesh, redCoreBody, redCoreHP = 100;
+
+// Army & Unit Simulation State
+let units = [];
+let nextUnitId = 1;
+let enlistedSquads = { blue: [], red: [] };
+let teamFormation = { blue: 'line', red: 'line' };
+let teamStance = { blue: 'aggressive', red: 'aggressive' };
+let teamRally = { blue: null, red: null };
+let rallyFlags = { blue: null, red: null };
+let aiTargetTimer = 0;
+let unitSyncAcc = 0;
+
+let selectedIdx = null;
+let interactionMode = null;
+let dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let prevMouse = { x: 0, y: 0 };
+let raycaster = new THREE.Raycaster();
+let pointer = new THREE.Vector2();
+let lastTime = 0;
+
+// Multiplayer / AI / WebSocket state
+let peer = null;
+let conn = null;
+let netMode = 'ai'; // 'ai' | 'host' | 'guest'
+let myTeam = 'blue'; // 'blue' (Host / Solo) | 'red' (Guest)
+let syncAccumulator = 0;
+
+// Build state
+let currentShape = 'box';
+let currentMaterial = 'wood';
+let currentSize = { w: 1, h: 1, d: 1 };
+
+// Artillery state
+let selectedWeapon = 'cannon';
+let firePower = 80;
+let aimTarget = new THREE.Vector3(16, 1.5, 0);
+let aimMarker, aimLine;
+let aiFireCooldown = 5.5;
+let enemyQuakeTimer = 0;
+let playerQuakeTimer = 0;
+
+const materials = {
+  wood:     { color: 0x9a5b25, mass: 0.75, friction: 0.65, costPerVol: 80,  baseHP: 100, name: 'Wood' },
+  stone:    { color: 0x52606d, mass: 1.5,  friction: 0.85, costPerVol: 140, baseHP: 170, name: 'Stone' },
+  steel:    { color: 0x7b8794, mass: 2.1,  friction: 0.45, costPerVol: 220, baseHP: 280, name: 'Steel' },
+  glass:    { color: 0x7dd3fc, mass: 0.5,  friction: 0.25, costPerVol: 50,  baseHP: 45,  name: 'Glass' },
+  concrete: { color: 0x6b7280, mass: 1.85, friction: 0.9,  costPerVol: 170, baseHP: 220, name: 'Concrete' },
+  plastic:  { color: 0xe11d48, mass: 0.6,  friction: 0.45, costPerVol: 65,  baseHP: 75,  name: 'Polymer' },
+  barracks: { color: 0xd97706, mass: 1.65, friction: 0.8,  costPerVol: 190, baseHP: 260, name: 'Barracks' }
+};
+
+const unitDefs = {
+  footman: {
+    name: 'Footmen', count: 4, cost: 120,
+    hp: 95, speed: 2.65, range: 1.15, attackCooldown: 0.95,
+    unitDmg: 18, structDmg: 12, coreDmg: 4.5, radius: 0.34
+  },
+  archer: {
+    name: 'Archers', count: 4, cost: 150,
+    hp: 52, speed: 2.4, range: 9.2, attackCooldown: 1.45,
+    unitDmg: 16, structDmg: 10, coreDmg: 3.5, radius: 0.30
+  },
+  ram: {
+    name: 'Siege Ram', count: 1, cost: 220,
+    hp: 260, speed: 1.55, range: 1.65, attackCooldown: 1.6,
+    unitDmg: 4, structDmg: 72, coreDmg: 15.0, radius: 0.72
+  },
+  cavalry: {
+    name: 'Cavalry', count: 3, cost: 200,
+    hp: 88, speed: 4.6, range: 1.35, attackCooldown: 0.85,
+    unitDmg: 22, structDmg: 10, coreDmg: 5.5, radius: 0.44
+  }
+};
+
+const weapons = {
+  cannon:  { name: 'Kinetic Cannon',   cost: 150, speedScale: 0.34, mass: 4.5, radius: 0.32, color: 0x38bdf8, blastRadius: 0,   blastForce: 0 },
+  mortar:  { name: 'Explosive Mortar', cost: 300, speedScale: 0.27, mass: 3.5, radius: 0.42, color: 0xf59e0b, blastRadius: 4.8, blastForce: 48 },
+  seismic: { name: 'Seismic Charge',   cost: 450, speedScale: 0,    mass: 0,   radius: 0,    color: 0xef4444, blastRadius: 0,   blastForce: 0 }
+};
+
+const templates = {
+  bunker: [
+    { x: -14.2, y: 1.25, z: 0,    w: 0.6, h: 2.5, d: 3.6, shape: 'box', material: 'concrete' },
+    { x: -17.8, y: 1.25, z: 0,    w: 0.6, h: 2.5, d: 3.6, shape: 'box', material: 'stone' },
+    { x: -16.0, y: 1.25, z: -1.6, w: 3.0, h: 2.5, d: 0.5, shape: 'box', material: 'stone' },
+    { x: -16.0, y: 1.25, z: 1.6,  w: 3.0, h: 2.5, d: 0.5, shape: 'box', material: 'stone' },
+    { x: -16.0, y: 2.75, z: 0,    w: 4.4, h: 0.45,d: 4.0, shape: 'box', material: 'steel' },
+  ],
+  citadel: [
+    { x: -13.5, y: 1.0,  z: 0,    w: 0.5, h: 2.0, d: 4.2, shape: 'box', material: 'wood' },
+    { x: -14.6, y: 1.4,  z: 0,    w: 0.6, h: 2.8, d: 3.6, shape: 'box', material: 'concrete' },
+    { x: -17.4, y: 1.4,  z: 0,    w: 0.6, h: 2.8, d: 3.6, shape: 'box', material: 'stone' },
+    { x: -16.0, y: 3.05, z: 0,    w: 3.8, h: 0.45,d: 4.0, shape: 'box', material: 'steel' },
+  ],
+  gatehouse: [
+    { x: -13.8, y: 1.3,  z: -2.1, w: 0.6, h: 2.6, d: 2.4, shape: 'box', material: 'concrete' },
+    { x: -13.8, y: 1.3,  z: 2.1,  w: 0.6, h: 2.6, d: 2.4, shape: 'box', material: 'concrete' },
+    { x: -13.8, y: 2.85, z: 0,    w: 0.7, h: 0.5, d: 6.6, shape: 'box', material: 'steel' },
+    { x: -17.6, y: 1.25, z: 0,    w: 0.6, h: 2.5, d: 3.4, shape: 'box', material: 'stone' },
+  ]
+};
+
+// ==========================================
+// BARRACKS POINTS & RANDOM AI RAIDS MODULE
+// ==========================================
+const raidSystem = {
+  points: { blue: 0, red: 0 },
+  nextRaidIn: 25 + Math.random() * 35,
+  minInterval: 25,
+  maxInterval: 60,
+  hitPointsPerStrike: 10,
+  destroyPointsBonus: 120
+};
+
+function awardAttackPoints(attackerTeam, amount) {
+  if (!attackerTeam || !Object.prototype.hasOwnProperty.call(raidSystem.points, attackerTeam)) return;
+  raidSystem.points[attackerTeam] += amount;
+
+  if (attackerTeam === myTeam && socket && socket.readyState === 1) {
+    socket.send(JSON.stringify({
+      type: 'barracks_attack',
+      playerId: myPlayerId,
+      alias: localStorage.getItem('siege_alias') || 'Commander',
+      destroyed: amount >= raidSystem.destroyPointsBonus
+    }));
+  }
+  updateHUD();
+}
+
+function countTeamBarracks(team) {
+  const arr = team === 'blue' ? bluePieces : redPieces;
+  return arr.filter(p => p && p.userData && p.userData.material === 'barracks').length;
+}
+
+function isBarracksPiece(mesh) {
+  return Boolean(mesh && mesh.userData && mesh.userData.material === 'barracks');
+}
+
+function getMaxSquadCap(team) {
+  // Base 6 squads + 2 extra squads per Barracks built (up to 16)
+  return Math.min(16, 6 + countTeamBarracks(team) * 2);
+}
+
+function spawnSquadWave(team, squadTypes) {
+  const baseX = team === 'blue' ? -7.5 : 7.5;
+
+  squadTypes.forEach((type, sIdx) => {
+    const def = unitDefs[type];
+    if (!def) return;
+    const laneZ = ((sIdx - (squadTypes.length - 1) / 2) * 3.0);
+
+    for (let i = 0; i < def.count; i++) {
+      const sx = THREE.MathUtils.clamp(baseX + (Math.random() - 0.5) * 2.0, -BUILD_MAX_ABS_X, BUILD_MAX_ABS_X);
+      const sz = THREE.MathUtils.clamp(laneZ + (i - (def.count - 1) / 2) * 0.95, -(MAP_HALF_D - 1.2), MAP_HALF_D - 1.2);
+      spawnSingleUnit(team, type, sx, sz);
+    }
+  });
+}
+
+function scheduleNextRandomRaid() {
+  raidSystem.nextRaidIn = raidSystem.minInterval + Math.random() * (raidSystem.maxInterval - raidSystem.minInterval);
+}
+
+function triggerRandomAiRaid() {
+  const pool = ['footman', 'archer', 'ram', 'cavalry'];
+  const waveCount = 1 + Math.floor(Math.random() * 3);
+  const wave = Array.from({ length: waveCount }, () => pool[Math.floor(Math.random() * pool.length)]);
+
+  spawnSquadWave('red', wave);
+
+  const statusEl = document.getElementById('mpStatus');
+  if (statusEl) {
+    statusEl.textContent = `⚔️ Random AI Raid incoming: ${wave.join(', ')}!`;
+  }
+  scheduleNextRandomRaid();
+}
+
+function updateRandomRaids(dt) {
+  if (phase === 'ended') return;
+  raidSystem.nextRaidIn -= dt;
+  if (raidSystem.nextRaidIn <= 0) {
+    triggerRandomAiRaid();
+  }
+}
+
+// ==========================================
+// CLOUDFLARE WORKER WEBSOCKET FRIEND ROOM
+// ==========================================
+let socket = null;
+let myPlayerId = localStorage.getItem('siege_anon_id');
+if (!myPlayerId) {
+  myPlayerId = 'p_' + crypto.randomUUID().slice(0, 8);
+  localStorage.setItem('siege_anon_id', myPlayerId);
+}
+
+function connectFriendServer(alias, friendCode) {
+  if (socket) {
+    try { socket.close(); } catch (_) {}
+  }
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${location.host}/ws?room=friends-main&code=${encodeURIComponent(friendCode)}`;
+  socket = new WebSocket(url);
+
+  socket.onopen = () => {
+    const statusEl = document.getElementById('mpStatus');
+    if (statusEl) statusEl.textContent = `Connected as ${alias} (Friend Room)`;
+    syncMyBaseToServer(alias);
+  };
+
+  socket.onmessage = (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+
+    if (msg.type === 'ai_raid' && msg.targetPlayerId === myPlayerId) {
+      spawnSquadWave('red', msg.wave);
+      const statusEl = document.getElementById('mpStatus');
+      if (statusEl) statusEl.textContent = `⚠️ Server AI Raid on your base: ${msg.wave.join(', ')}!`;
+    } else if (msg.type === 'points_updated' && msg.playerId === myPlayerId) {
+      raidSystem.points[myTeam] = msg.points;
+      updateHUD();
+    }
+  };
+}
+
+function syncMyBaseToServer(alias = null) {
+  if (!socket || socket.readyState !== 1) return;
+  const resolvedAlias = alias || localStorage.getItem('siege_alias') || 'Commander';
+  const myArr = myTeam === 'blue' ? bluePieces : redPieces;
+  const pieces = myArr.map(m => ({
+    x: m.position.x, y: m.position.y, z: m.position.z,
+    w: m.userData.w, h: m.userData.h, d: m.userData.d,
+    shape: m.userData.shape, material: m.userData.material
+  }));
+  socket.send(JSON.stringify({ type: 'sync_base', playerId: myPlayerId, alias: resolvedAlias, pieces }));
+}
+
+function handleFriendWsConnect() {
+  const aliasEl = document.getElementById('friendAliasInput');
+  const codeEl = document.getElementById('friendCodeInput');
+  const badgeEl = document.getElementById('ws-badge');
+  const statusEl = document.getElementById('mpStatus');
+
+  const alias = (aliasEl ? aliasEl.value.trim() : '') || 'Commander';
+  const friendCode = codeEl ? codeEl.value.trim() : '';
+
+  if (!friendCode) {
+    if (statusEl) statusEl.textContent = 'Enter the Friend Code first!';
+    return;
+  }
+
+  if (aliasEl) localStorage.setItem('siege_alias', alias);
+  if (badgeEl) {
+    badgeEl.textContent = 'Connecting...';
+    badgeEl.style.color = '#fbbf24';
+  }
+
+  connectFriendServer(alias, friendCode);
+
+  if (socket) {
+    const origOpen = socket.onopen;
+    socket.onopen = (ev) => {
+      if (origOpen) origOpen(ev);
+      if (badgeEl) {
+        badgeEl.textContent = 'Online';
+        badgeEl.style.color = '#34d399';
+      }
+    };
+    socket.onclose = () => {
+      if (badgeEl) {
+        badgeEl.textContent = 'Offline';
+        badgeEl.style.color = '#f87171';
+      }
+      if (statusEl) statusEl.textContent = 'Disconnected or invalid Friend Code.';
+    };
+  }
+}
+
+function calcPieceCost(w, h, d, matName) {
+  const vol = w * h * d;
+  return Math.max(25, Math.round((vol * materials[matName].costPerVol) / 5) * 5);
+}
+
+function calcPieceHP(w, h, d, matName) {
+  const volFactor = Math.min(2.4, Math.max(0.65, Math.pow(w * h * d, 0.42)));
+  return Math.round(materials[matName].baseHP * volFactor);
+}
+
+// ==========================================
+// UPDATED EXPANDED ARENA MAP & TERRAIN
+// ==========================================
+function createArenaTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#29303d';
+  ctx.fillRect(0, 0, 2048, 1024);
+
+  for (let i = 0; i < 6500; i++) {
+    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.06)';
+    ctx.fillRect(Math.random() * 2048, Math.random() * 1024, 3, 3);
+  }
+
+  // Central Battlefield Ford / Valley Floor
+  ctx.fillStyle = '#1e2634';
+  ctx.fillRect(940, 0, 168, 1024);
+
+  // Blue Territory (Left - Expanded for Multiple Barracks)
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.11)';
+  ctx.fillRect(48, 48, 860, 928);
+
+  // Red Territory (Right - Expanded for Multiple Barracks)
+  ctx.fillStyle = 'rgba(248, 113, 113, 0.11)';
+  ctx.fillRect(1140, 48, 860, 928);
+
+  // Tactical Grid
+  ctx.strokeStyle = 'rgba(226, 232, 240, 0.08)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= 2048; x += 32) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1024); ctx.stroke();
+  }
+  for (let y = 0; y <= 1024; y += 32) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(2048, y); ctx.stroke();
+  }
+
+  // Territory Borders
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+  ctx.strokeRect(48, 48, 860, 928);
+
+  ctx.strokeStyle = 'rgba(248, 113, 113, 0.55)';
+  ctx.strokeRect(1140, 48, 860, 928);
+
+  // Suggested Barracks Outpost Pads (3 on each side)
+  const padCoords = [
+    { x: 240, y: 220, col: 'rgba(56, 189, 248, 0.25)' },
+    { x: 240, y: 804, col: 'rgba(56, 189, 248, 0.25)' },
+    { x: 640, y: 512, col: 'rgba(56, 189, 248, 0.25)' },
+    { x: 1808, y: 220, col: 'rgba(248, 113, 113, 0.25)' },
+    { x: 1808, y: 804, col: 'rgba(248, 113, 113, 0.25)' },
+    { x: 1408, y: 512, col: 'rgba(248, 113, 113, 0.25)' }
+  ];
+  padCoords.forEach(p => {
+    ctx.strokeStyle = p.col;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(p.x - 75, p.y - 75, 150, 150);
+  });
+
+  // Center Crossing Markers
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.42)';
+  ctx.setLineDash([16, 12]);
+  ctx.beginPath(); ctx.moveTo(940, 0); ctx.lineTo(940, 1024); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(1108, 0); ctx.lineTo(1108, 1024); ctx.stroke();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.anisotropy = 8;
+  return tex;
+}
+
+function buildBattlefieldTerrain() {
+  const arenaW = MAP_HALF_W * 2; // 60m
+  const arenaD = MAP_HALF_D * 2; // 32m
+
+  const arenaGeo = new THREE.PlaneGeometry(arenaW, arenaD);
+  const arenaMat = new THREE.MeshStandardMaterial({
+    map: createArenaTexture(),
+    roughness: 0.85,
+    metalness: 0.08
+  });
+  const arena = new THREE.Mesh(arenaGeo, arenaMat);
+  arena.rotation.x = -Math.PI / 2;
+  arena.receiveShadow = true;
+  scene.add(arena);
+
+  const curbMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
+  const northCurb = new THREE.Mesh(new THREE.BoxGeometry(arenaW + 1, 0.45, 0.6), curbMat);
+  northCurb.position.set(0, 0.2, -(MAP_HALF_D + 0.2));
+  northCurb.receiveShadow = true;
+  northCurb.castShadow = true;
+  scene.add(northCurb);
+
+  const southCurb = new THREE.Mesh(new THREE.BoxGeometry(arenaW + 1, 0.45, 0.6), curbMat);
+  southCurb.position.set(0, 0.2, MAP_HALF_D + 0.2);
+  southCurb.receiveShadow = true;
+  southCurb.castShadow = true;
+  scene.add(southCurb);
+
+  const terrainSize = 300;
+  const segs = 110;
+  const tGeo = new THREE.PlaneGeometry(terrainSize, terrainSize, segs, segs);
+  tGeo.rotateX(-Math.PI / 2);
+
+  const pos = tGeo.attributes.position;
+  const colors = [];
+  const cGrass = new THREE.Color(0x2d4a36);
+  const cDirt  = new THREE.Color(0x4a4238);
+  const cRock  = new THREE.Color(0x525b66);
+  const cSnow  = new THREE.Color(0xdbeafe);
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const dx = Math.max(0, Math.abs(x) - (MAP_HALF_W + 1.5));
+    const dz = Math.max(0, Math.abs(z) - (MAP_HALF_D + 1.5));
+    const distOut = Math.sqrt(dx * dx + dz * dz);
+
+    let y = -0.06;
+    if (distOut > 0) {
+      const ridge = Math.sin(x * 0.08) * Math.cos(z * 0.08) * 3.5
+                  + Math.sin(x * 0.19 + z * 0.14) * 1.6
+                  + Math.cos(x * 0.04 - z * 0.05) * 4.5;
+      const slope = Math.min(28, Math.pow(distOut * 0.22, 1.45));
+      y = -0.06 + slope + Math.max(0, ridge) * Math.min(1, distOut / 12);
+    }
+    pos.setY(i, y);
+
+    const col = new THREE.Color();
+    if (y < 1.8) col.copy(cGrass).lerp(cDirt, Math.random() * 0.25);
+    else if (y < 9.5) col.copy(cDirt).lerp(cRock, (y - 1.8) / 7.7);
+    else if (y < 17) col.copy(cRock);
+    else col.copy(cRock).lerp(cSnow, Math.min(1, (y - 17) / 6));
+    colors.push(col.r, col.g, col.b);
+  }
+  tGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  tGeo.computeVertexNormals();
+
+  const terrainMesh = new THREE.Mesh(
+    tGeo,
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, flatShading: true })
+  );
+  terrainMesh.receiveShadow = true;
+  scene.add(terrainMesh);
+
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3525, roughness: 0.9 });
+  const leafMat  = new THREE.MeshStandardMaterial({ color: 0x1e3f2b, roughness: 0.85, flatShading: true });
+  const rockMat  = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9, flatShading: true });
+
+  for (let i = 0; i < 64; i++) {
+    const angle = (i / 64) * Math.PI * 2;
+    const radius = 36 + (i % 6) * 5.0;
+    const tx = Math.cos(angle) * radius * 1.25;
+    const tz = Math.sin(angle) * radius * 0.85;
+    if (Math.abs(tx) < (MAP_HALF_W + 2) && Math.abs(tz) < (MAP_HALF_D + 2)) continue;
+
+    if (i % 3 === 0) {
+      const b = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8 + (i % 3) * 0.4, 0), rockMat);
+      b.position.set(tx, 0.5, tz);
+      b.rotation.set(i, i * 0.7, 0);
+      b.castShadow = true;
+      b.receiveShadow = true;
+      scene.add(b);
+    } else {
+      const tree = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 1.4, 7), trunkMat);
+      trunk.position.y = 0.7;
+      const foliage1 = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.4, 7), leafMat);
+      foliage1.position.y = 2.2;
+      const foliage2 = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.9, 7), leafMat);
+      foliage2.position.y = 3.3;
+      tree.add(trunk, foliage1, foliage2);
+      tree.position.set(tx, 0.2, tz);
+      tree.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      scene.add(tree);
+    }
+  }
+}
+
+function createRallyFlagMesh(colorHex) {
+  const grp = new THREE.Group();
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 1.3, 6),
+    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.6 })
+  );
+  pole.position.y = 0.65;
+  const pennant = new THREE.Mesh(
+    new THREE.ConeGeometry(0.24, 0.55, 4),
+    new THREE.MeshStandardMaterial({ color: colorHex, emissive: colorHex, emissiveIntensity: 0.4, flatShading: true })
+  );
+  pennant.rotation.z = -Math.PI / 2;
+  pennant.position.set(0.26, 1.1, 0);
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.45, 0.62, 24),
+    new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide, transparent: true, opacity: 0.7 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.04;
+  grp.add(pole, pennant, ring);
+  grp.visible = false;
+  scene.add(grp);
+  return grp;
+}
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x16243b);
+  scene.fog = new THREE.FogExp2(0x16243b, 0.0065);
+
+  camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 320);
+  camera.position.set(-16, 16, 24);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.minDistance = 5;
+  controls.maxDistance = 85;
+  controls.maxPolarAngle = Math.PI / 2 - 0.04;
+  controls.target.set(-14, 1.5, 0);
+
+  scene.add(new THREE.HemisphereLight(0xbae6fd, 0x1e293b, 0.85));
+  const sun = new THREE.DirectionalLight(0xfff1d6, 1.55);
+  sun.position.set(22, 36, 24);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width = 2048;
+  sun.shadow.mapSize.height = 2048;
+  const d = 36;
+  sun.shadow.camera.left = -d;
+  sun.shadow.camera.right = d;
+  sun.shadow.camera.top = d;
+  sun.shadow.camera.bottom = -d;
+  scene.add(sun);
+
+  buildBattlefieldTerrain();
+
+  rallyFlags.blue = createRallyFlagMesh(0x38bdf8);
+  rallyFlags.red  = createRallyFlagMesh(0xf87171);
+
+  aimMarker = new THREE.Mesh(
+    new THREE.RingGeometry(0.45, 0.7, 32),
+    new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide, transparent: true, opacity: 0.9 })
+  );
+  aimMarker.rotation.x = -Math.PI / 2;
+  aimMarker.visible = true;
+  scene.add(aimMarker);
+
+  const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+  aimLine = new THREE.Line(
+    lineGeo,
+    new THREE.LineDashedMaterial({ color: 0xfbbf24, dashSize: 0.4, gapSize: 0.25 })
+  );
+  aimLine.visible = true;
+  scene.add(aimLine);
+
+  initPhysics();
+  setupMatch();
+
+  const savedAlias = localStorage.getItem('siege_alias');
+  if (savedAlias && document.getElementById('friendAliasInput')) {
+    document.getElementById('friendAliasInput').value = savedAlias;
+  }
+
+  window.addEventListener('resize', onWindowResize);
+  document.addEventListener('keydown', onKeyDown);
+  renderer.domElement.addEventListener('mousedown', onMouseDown);
+  renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+
+function initPhysics() {
+  world = new CANNON.World();
+  world.gravity.set(0, -9.82, 0);
+  world.solver.iterations = 28;
+  world.broadphase = new CANNON.SAPBroadphase(world);
+
+  const groundBody = new CANNON.Body({
+    mass: 0,
+    shape: new CANNON.Plane(),
+    material: new CANNON.Material({ friction: 0.85 })
+  });
+  groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+  world.addBody(groundBody);
+
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('topbar').classList.remove('hidden');
+  document.getElementById('ui').classList.remove('hidden');
+  document.getElementById('instructions').classList.remove('hidden');
+}
+
+// ==========================================
+// 2-PLAYER P2P ONLINE MULTIPLAYER (PeerJS)
+// ==========================================
+function sendNet(msg) {
+  if (conn && conn.open) conn.send(msg);
+}
+
+function setupConnection(connection) {
+  conn = connection;
+  conn.on('open', () => {
+    document.getElementById('mpStatus').textContent = `Connected! You command the ${myTeam.toUpperCase()} Fortress & Barracks.`;
+    document.getElementById('net-role').textContent = myTeam === 'blue' ? 'Host (Blue)' : 'Guest (Red)';
+    if (netMode === 'host') {
+      resetMatch();
+      sendNet({ type: 'reset' });
+    }
+  });
+
+  conn.on('data', data => {
+    if (data.type === 'reset') {
+      setupMatch();
+    } else if (data.type === 'spawn') {
+      spawnTeamPiece(data.team, data.x, data.y, data.z, data.w, data.h, data.d, data.material, data.shape, 0, true);
+    } else if (data.type === 'movePiece') {
+      const bArr = data.team === 'blue' ? blueBodies : redBodies;
+      if (bArr[data.idx]) {
+        bArr[data.idx].position.set(data.x, data.y, data.z);
+        bArr[data.idx].quaternion.set(data.qx, data.qy, data.qz, data.qw);
+        bArr[data.idx].velocity.set(0, 0, 0);
+      }
+    } else if (data.type === 'removePiece') {
+      removePieceByTeam(data.team, data.idx);
+    } else if (data.type === 'squadSync') {
+      enlistedSquads[data.team] = data.squads;
+      teamFormation[data.team] = data.formation;
+      teamStance[data.team] = data.stance;
+    } else if (data.type === 'spawnWave') {
+      spawnSquadWave(data.team, data.squads);
+    } else if (data.type === 'armyOrder') {
+      teamStance[data.team] = data.stance;
+      teamRally[data.team] = data.rally ? new THREE.Vector3(data.rally.x, 0, data.rally.z) : null;
+      updateRallyVisuals();
+    } else if (data.type === 'fire') {
+      launchProjectile(
+        data.owner,
+        data.weaponKey,
+        new THREE.Vector3(data.ox, data.oy, data.oz),
+        new THREE.Vector3(data.tx, data.ty, data.tz),
+        data.powerPct
+      );
+    } else if (data.type === 'stateSync' && netMode === 'guest') {
+      blueCoreHP = data.blueHP;
+      redCoreHP = data.redHP;
+      if (data.points) raidSystem.points = data.points;
+    } else if (data.type === 'unitSync' && netMode === 'guest') {
+      applyUnitSnapshot(data.units);
+    }
+  });
+
+  conn.on('close', () => {
+    document.getElementById('mpStatus').textContent = 'Opponent disconnected. Reverted to AI mode.';
+    netMode = 'ai';
+    myTeam = 'blue';
+    document.getElementById('net-role').textContent = 'Solo AI';
+  });
+}
+
+function hostOnlineMatch() {
+  if (peer) peer.destroy();
+  netMode = 'host';
+  myTeam = 'blue';
+  document.getElementById('mpStatus').textContent = 'Generating Room ID...';
+  peer = new Peer();
+  peer.on('open', id => {
+    document.getElementById('roomCodeInput').value = id;
+    document.getElementById('mpStatus').textContent = `Room Ready! Share ID above with Friend 2.`;
+    document.getElementById('net-role').textContent = 'Waiting P2...';
+  });
+  peer.on('connection', connection => setupConnection(connection));
+}
+
+function joinOnlineMatch() {
+  const hostId = document.getElementById('roomCodeInput').value.trim();
+  if (!hostId) {
+    document.getElementById('mpStatus').textContent = 'Paste the Host Room ID first!';
+    return;
+  }
+  if (peer) peer.destroy();
+  netMode = 'guest';
+  myTeam = 'red';
+  document.getElementById('mpStatus').textContent = 'Connecting to Host...';
+  peer = new Peer();
+  peer.on('open', () => {
+    const connection = peer.connect(hostId);
+    setupConnection(connection);
+  });
+}
+
+// ==========================================
+// LOW-POLY PROCEDURAL UNIT BUILDERS
+// ==========================================
+function buildUnitMesh(type, team) {
+  const teamHex = team === 'blue' ? 0x38bdf8 : 0xf87171;
+  const armorMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.65, metalness: 0.3, flatShading: true });
+  const skinMat  = new THREE.MeshStandardMaterial({ color: 0xf1c27d, roughness: 0.8, flatShading: true });
+  const woodMat  = new THREE.MeshStandardMaterial({ color: 0x7c4a21, roughness: 0.85, flatShading: true });
+  const teamMat  = new THREE.MeshStandardMaterial({ color: teamHex, roughness: 0.55, flatShading: true });
+
+  const root = new THREE.Group();
+  const bodyGrp = new THREE.Group();
+  root.add(bodyGrp);
+
+  let leftLeg = null, rightLeg = null, rightArm = null, leftArm = null, ramLog = null;
+
+  if (type === 'footman') {
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.34, 0.2), teamMat);
+    torso.position.y = 0.42;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), skinMat);
+    head.position.y = 0.68;
+    const helm = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.14, 8), armorMat);
+    helm.position.y = 0.76;
+
+    leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.26, 0.1), armorMat);
+    leftLeg.position.set(0, 0.13, -0.06);
+    rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.26, 0.1), armorMat);
+    rightLeg.position.set(0, 0.13, 0.06);
+
+    leftArm = new THREE.Group();
+    leftArm.position.set(0.05, 0.44, -0.15);
+    const shield = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.32, 0.24), teamMat);
+    const shieldRim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.26, 0.18), armorMat);
+    leftArm.add(shield, shieldRim);
+
+    rightArm = new THREE.Group();
+    rightArm.position.set(0.05, 0.48, 0.15);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.04), armorMat);
+    blade.position.set(0.16, 0.04, 0);
+    rightArm.add(blade);
+
+    bodyGrp.add(torso, head, helm, leftLeg, rightLeg, leftArm, rightArm);
+  } else if (type === 'archer') {
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.33, 0.18), teamMat);
+    torso.position.y = 0.41;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 8), skinMat);
+    head.position.y = 0.66;
+    const hood = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.2, 7), teamMat);
+    hood.position.set(-0.02, 0.74, 0);
+    hood.rotation.z = 0.2;
+
+    leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.09), woodMat);
+    leftLeg.position.set(0, 0.125, -0.05);
+    rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.09), woodMat);
+    rightLeg.position.set(0, 0.125, 0.05);
+
+    rightArm = new THREE.Group();
+    rightArm.position.set(0.14, 0.46, 0);
+    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.022, 6, 12, Math.PI), woodMat);
+    bow.rotation.z = -Math.PI / 2;
+    rightArm.add(bow);
+
+    bodyGrp.add(torso, head, hood, leftLeg, rightLeg, rightArm);
+  } else if (type === 'ram') {
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.55, 4), woodMat);
+    roof.rotation.y = Math.PI / 4;
+    roof.scale.set(1.35, 1, 0.85);
+    roof.position.y = 0.88;
+
+    const banner = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.25, 0.68), teamMat);
+    banner.position.y = 0.58;
+
+    ramLog = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 1.35, 8), armorMat);
+    ramLog.rotation.z = Math.PI / 2;
+    ramLog.position.set(0.15, 0.36, 0);
+
+    leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.12), armorMat);
+    leftLeg.position.set(-0.22, 0.14, -0.34);
+    rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.12), armorMat);
+    rightLeg.position.set(0.22, 0.14, 0.34);
+
+    bodyGrp.add(roof, banner, ramLog, leftLeg, rightLeg);
+  } else if (type === 'cavalry') {
+    const horseMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.85, flatShading: true });
+    const horseBody = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.28, 0.24), horseMat);
+    horseBody.position.y = 0.44;
+    const horseNeck = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.32, 0.16), horseMat);
+    horseNeck.position.set(0.32, 0.62, 0);
+    horseNeck.rotation.z = -0.35;
+
+    leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.32, 0.08), horseMat);
+    leftLeg.position.set(0.22, 0.16, -0.09);
+    rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.32, 0.08), horseMat);
+    rightLeg.position.set(-0.22, 0.16, 0.09);
+
+    const riderTorso = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.18), teamMat);
+    riderTorso.position.set(-0.02, 0.72, 0);
+    const riderHead = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), armorMat);
+    riderHead.position.set(-0.02, 0.94, 0);
+
+    rightArm = new THREE.Group();
+    rightArm.position.set(0.05, 0.74, 0.14);
+    const lance = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.03, 0.95, 6), armorMat);
+    lance.rotation.z = -Math.PI / 2 + 0.15;
+    lance.position.set(0.35, 0.05, 0);
+    rightArm.add(lance);
+
+    bodyGrp.add(horseBody, horseNeck, leftLeg, rightLeg, riderTorso, riderHead, rightArm);
+  }
+
+  const hpBg = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.55, 0.07),
+    new THREE.MeshBasicMaterial({ color: 0x0f172a, side: THREE.DoubleSide })
+  );
+  const hpFill = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.51, 0.045),
+    new THREE.MeshBasicMaterial({ color: teamHex, side: THREE.DoubleSide })
+  );
+  hpFill.position.z = 0.005;
+  const hpBar = new THREE.Group();
+  hpBar.add(hpBg, hpFill);
+  hpBar.position.y = type === 'ram' ? 1.35 : (type === 'cavalry' ? 1.25 : 1.02);
+  hpBar.visible = false;
+  root.add(hpBar);
+
+  root.traverse(o => {
+    if (o.isMesh && o !== hpBg && o !== hpFill) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    }
+  });
+
+  if (team === 'red') root.rotation.y = Math.PI;
+  scene.add(root);
+
+  return { root, bodyGrp, leftLeg, rightLeg, leftArm, rightArm, ramLog, hpBar, hpFill };
+}
+
+function createCore(x, z, teamColor) {
+  const geo = new THREE.OctahedronGeometry(0.75, 0);
+  const mat = new THREE.MeshStandardMaterial({
+    color: teamColor,
+    emissive: teamColor,
+    emissiveIntensity: 0.55,
+    roughness: 0.2,
+    metalness: 0.4
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, 0.85, z);
+  mesh.castShadow = true;
+  scene.add(mesh);
+
+  const body = new CANNON.Body({
+    mass: 2.2,
+    position: new CANNON.Vec3(x, 0.85, z),
+    shape: new CANNON.Sphere(0.7),
+    linearDamping: 0.25,
+    angularDamping: 0.25
+  });
+  world.addBody(body);
+  return { mesh, body };
+}
+
+function spawnTeamPiece(team, x, y, z, w, h, d, matName = 'wood', shape = 'box', cost = 0, fromNet = false) {
+  const matData = materials[matName] || materials.wood;
+  let geo;
+  switch (shape) {
+    case 'cylinder': geo = new THREE.CylinderGeometry(w / 2, w / 2, h, 24); break;
+    case 'sphere':   geo = new THREE.SphereGeometry(Math.min(w, h, d) / 2, 24, 24); break;
+    case 'cone':     geo = new THREE.ConeGeometry(w / 2, h, 24); break;
+    default:         geo = new THREE.BoxGeometry(w, h, d);
+  }
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: matData.color,
+    transparent: matName === 'glass',
+    opacity: matName === 'glass' ? 0.55 : 1,
+    roughness: matName === 'steel' ? 0.35 : 0.75,
+    metalness: matName === 'steel' ? 0.65 : 0.1
+  });
+
+  const maxHp = calcPieceHP(w, h, d, matName);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = {
+    team, w, h, d, shape, material: matName, cost,
+    hp: maxHp, maxHp, baseColor: matData.color
+  };
+
+  // Add a glowing team banner roof emblem onto Barracks structures so they stand out on the map
+  if (matName === 'barracks') {
+    const bannerMat = new THREE.MeshStandardMaterial({
+      color: team === 'blue' ? 0x38bdf8 : 0xf87171,
+      emissive: team === 'blue' ? 0x38bdf8 : 0xf87171,
+      emissiveIntensity: 0.45
+    });
+    const banner = new THREE.Mesh(new THREE.BoxGeometry(w * 0.75, 0.22, d * 0.75), bannerMat);
+    banner.position.y = h / 2 + 0.12;
+    mesh.add(banner);
+  }
+
+  scene.add(mesh);
+
+  let physShape;
+  switch (shape) {
+    case 'cylinder': physShape = new CANNON.Cylinder(w / 2, w / 2, h, 16); break;
+    case 'sphere':   physShape = new CANNON.Sphere(Math.min(w, h, d) / 2); break;
+    case 'cone':     physShape = new CANNON.Cylinder(0.05, w / 2, h, 16); break;
+    default:         physShape = new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2));
+  }
+
+  const body = new CANNON.Body({
+    mass: matData.mass * (w * h * d * 0.5 + 0.5),
+    position: new CANNON.Vec3(x, y, z),
+    shape: physShape,
+    linearDamping: 0.16,
+    angularDamping: 0.16,
+    material: new CANNON.Material({ friction: matData.friction })
+  });
+  world.addBody(body);
+
+  if (team === 'blue') {
+    bluePieces.push(mesh);
+    blueBodies.push(body);
+    if (myTeam === 'blue' && !fromNet) selectPiece(bluePieces.length - 1);
+  } else {
+    redPieces.push(mesh);
+    redBodies.push(body);
+    if (myTeam === 'red' && !fromNet) selectPiece(redPieces.length - 1);
+  }
+
+  if (!fromNet) {
+    if (netMode !== 'ai') {
+      sendNet({ type: 'spawn', team, x, y, z, w, h, d, material: matName, shape });
+    }
+    syncMyBaseToServer();
+  }
+}
+
+function damageStructurePiece(team, idx, amount, attackerTeam = null) {
+  const pArr = team === 'blue' ? bluePieces : redPieces;
+  const mesh = pArr[idx];
+  if (!mesh) return;
+
+  const wasBarracks = isBarracksPiece(mesh);
+  const resolvedAttacker = attackerTeam || (team === 'red' ? 'blue' : 'red');
+
+  if (wasBarracks && amount > 0) {
+    awardAttackPoints(resolvedAttacker, raidSystem.hitPointsPerStrike);
+  }
+
+  mesh.userData.hp -= amount;
+  const ratio = Math.max(0, mesh.userData.hp / mesh.userData.maxHp);
+
+  const baseCol = new THREE.Color(mesh.userData.baseColor);
+  const dmgCol = new THREE.Color(0x1e1b18);
+  mesh.material.color.copy(dmgCol).lerp(baseCol, 0.25 + ratio * 0.75);
+
+  if (mesh.userData.hp <= 0) {
+    if (wasBarracks) {
+      awardAttackPoints(resolvedAttacker, raidSystem.destroyPointsBonus);
+      // Defender earns +$250 scrap salvage when rebuilding
+      if (team === myTeam) budget += 150;
+    }
+    spawnDebrisBurst(mesh.position, mesh.userData.baseColor, 7);
+    removePieceByTeam(team, idx);
+    if (netMode !== 'ai') sendNet({ type: 'removePiece', team, idx });
+    if (team === myTeam) syncMyBaseToServer();
+  }
+}
+
+function spawnDebrisBurst(pos, colorHex, count = 6) {
+  const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.85, flatShading: true });
+  for (let i = 0; i < count; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.24), mat);
+    m.position.set(
+      pos.x + (Math.random() - 0.5) * 0.8,
+      Math.max(0.2, pos.y + (Math.random() - 0.5) * 0.8),
+      pos.z + (Math.random() - 0.5) * 0.8
+    );
+    scene.add(m);
+    debris.push({
+      mesh: m,
+      vx: (Math.random() - 0.5) * 5,
+      vy: 2.5 + Math.random() * 4,
+      vz: (Math.random() - 0.5) * 5,
+      age: 0
+    });
+  }
+}
+
+function buildEnemyFortress() {
+  // Spawn an AI camp with multiple Barracks outposts across the large right-side territory
+  const layout = [
+    // Main Core Fortress
+    { x: 14.5, y: 1.25, z: -2.2, w: 0.6, h: 2.5, d: 2.4, shape: 'box', material: 'concrete' },
+    { x: 14.5, y: 1.25, z: 2.2,  w: 0.6, h: 2.5, d: 2.4, shape: 'box', material: 'concrete' },
+    { x: 19.5, y: 1.25, z: 0,    w: 0.6, h: 2.5, d: 4.2, shape: 'box', material: 'stone' },
+    { x: 17.0, y: 2.75, z: 0,    w: 5.2, h: 0.45,d: 6.2, shape: 'box', material: 'steel' },
+
+    // Enemy Forward Barracks Outpost #1
+    { x: 11.5, y: 0.9,  z: 0,    w: 2.0, h: 1.8, d: 2.0, shape: 'box', material: 'barracks' },
+    { x: 9.8,  y: 0.8,  z: 0,    w: 0.5, h: 1.6, d: 3.2, shape: 'box', material: 'wood' },
+
+    // Enemy North Barracks Outpost #2
+    { x: 20.5, y: 0.9,  z: -8.5, w: 2.2, h: 1.8, d: 2.2, shape: 'box', material: 'barracks' },
+    { x: 18.6, y: 0.9,  z: -8.5, w: 0.5, h: 1.8, d: 3.0, shape: 'box', material: 'stone' },
+
+    // Enemy South Barracks Outpost #3
+    { x: 20.5, y: 0.9,  z: 8.5,  w: 2.2, h: 1.8, d: 2.2, shape: 'box', material: 'barracks' },
+    { x: 18.6, y: 0.9,  z: 8.5,  w: 0.5, h: 1.8, d: 3.0, shape: 'box', material: 'stone' }
+  ];
+  layout.forEach(p => spawnTeamPiece('red', p.x, p.y, p.z, p.w, p.h, p.d, p.material, p.shape, 0, true));
+}
+
+function clearTeam(team) {
+  const pArr = team === 'blue' ? bluePieces : redPieces;
+  const bArr = team === 'blue' ? blueBodies : redBodies;
+  pArr.forEach(p => scene.remove(p));
+  bArr.forEach(b => world.removeBody(b));
+  pArr.length = 0;
+  bArr.length = 0;
+  if (team === myTeam) selectedIdx = null;
+}
+
+function clearUnits() {
+  units.forEach(u => scene.remove(u.visual.root));
+  units = [];
+  arrows.forEach(a => scene.remove(a.mesh));
+  arrows = [];
+  debris.forEach(d => scene.remove(d.mesh));
+  debris = [];
+  nextUnitId = 1;
+}
+
+function setupMatch() {
+  clearTeam('blue');
+  clearTeam('red');
+  clearUnits();
+  projectiles.forEach(p => { scene.remove(p.mesh); world.removeBody(p.body); });
+  projectiles = [];
+  effects.forEach(e => scene.remove(e.mesh));
+  effects = [];
+
+  if (blueCoreMesh) { scene.remove(blueCoreMesh); world.removeBody(blueCoreBody); }
+  if (redCoreMesh)  { scene.remove(redCoreMesh);  world.removeBody(redCoreBody); }
+
+  const blueCore = createCore(-17.0, 0, 0x38bdf8);
+  blueCoreMesh = blueCore.mesh;
+  blueCoreBody = blueCore.body;
+  blueCoreHP = 100;
+
+  const redCore = createCore(17.0, 0, 0xf87171);
+  redCoreMesh = redCore.mesh;
+  redCoreBody = redCore.body;
+  redCoreHP = 100;
+
+  budget = STARTING_BUDGET;
+  phase = 'destroy'; // Continuous open building + live raids
+  enemyQuakeTimer = 0;
+  playerQuakeTimer = 0;
+
+  raidSystem.points.blue = 0;
+  raidSystem.points.red = 0;
+  scheduleNextRandomRaid();
+
+  enlistedSquads = { blue: ['footman'], red: [] };
+  teamFormation = { blue: 'line', red: 'line' };
+  teamStance = { blue: 'aggressive', red: 'aggressive' };
+  teamRally = { blue: null, red: null };
+  updateRallyVisuals();
+
+  const starterWallCost = calcPieceCost(0.6, 2.2, 3.4, 'wood');
+  const starterBarracksCost = calcPieceCost(2.0, 1.8, 2.0, 'barracks');
+  budget -= (starterWallCost + starterBarracksCost);
+
+  if (netMode === 'ai') {
+    spawnTeamPiece('blue', -14.2, 1.1, 0, 0.6, 2.2, 3.4, 'wood', 'box', starterWallCost, true);
+    spawnTeamPiece('blue', -20.5, 0.9, -6.5, 2.0, 1.8, 2.0, 'barracks', 'box', starterBarracksCost, true);
+    buildEnemyFortress();
+    enlistedSquads.red = ['footman', 'archer', 'ram', 'cavalry'];
+  } else {
+    enlistedSquads.red = ['footman'];
+    spawnTeamPiece('blue', -14.2, 1.1, 0, 0.6, 2.2, 3.4, 'wood', 'box', starterWallCost, true);
+    spawnTeamPiece('blue', -20.5, 0.9, -6.5, 2.0, 1.8, 2.0, 'barracks', 'box', starterBarracksCost, true);
+    spawnTeamPiece('red',   14.2, 1.1, 0, 0.6, 2.2, 3.4, 'wood', 'box', starterWallCost, true);
+    spawnTeamPiece('red',   20.5, 0.9, -6.5, 2.0, 1.8, 2.0, 'barracks', 'box', starterBarracksCost, true);
+  }
+
+  document.getElementById('modalOverlay').classList.add('hidden');
+  aimMarker.visible = true;
+  aimLine.visible = true;
+  aimTarget.set(myTeam === 'blue' ? 16.0 : -16.0, 1.2, 0);
+  updateAimVisuals();
+
+  if (myTeam === 'blue') {
+    controls.target.set(-14, 1.5, 0);
+    camera.position.set(-18, 16, 24);
+  } else {
+    controls.target.set(14, 1.5, 0);
+    camera.position.set(18, 16, 24);
+  }
+
+  renderBarracksRoster();
+  updateSize();
+  updateHUD();
+}
+
+function resetMatch() {
+  document.getElementById('templateSelect').value = '';
+  setupMatch();
+  if (netMode !== 'ai') sendNet({ type: 'reset' });
+}
+
+// ==========================================
+// BARRACKS & ARMY DEPLOYMENT LOGIC
+// ==========================================
+function switchBuildTab(tab) {
+  document.getElementById('tab-fortress').classList.toggle('active', tab === 'fortress');
+  document.getElementById('tab-barracks').classList.toggle('active', tab === 'barracks');
+  document.getElementById('tab-artillery').classList.toggle('active', tab === 'artillery');
+
+  document.getElementById('fortressSubPanel').classList.toggle('hidden', tab !== 'fortress');
+  document.getElementById('barracksSubPanel').classList.toggle('hidden', tab !== 'barracks');
+  document.getElementById('destroyControls').classList.toggle('hidden', tab !== 'artillery');
+}
+
+function syncMySquadsToNet() {
+  if (netMode === 'ai') return;
+  sendNet({
+    type: 'squadSync',
+    team: myTeam,
+    squads: enlistedSquads[myTeam],
+    formation: teamFormation[myTeam],
+    stance: teamStance[myTeam]
+  });
+}
+
+function buySquad(type) {
+  if (phase === 'ended') return;
+  const def = unitDefs[type];
+  const cap = getMaxSquadCap(myTeam);
+  if (!def || budget < def.cost) return;
+  if (enlistedSquads[myTeam].length >= cap) return;
+
+  budget -= def.cost;
+  enlistedSquads[myTeam].push(type);
+  renderBarracksRoster();
+  updateSize();
+  updateHUD();
+  syncMySquadsToNet();
+}
+
+function removeSquad(index) {
+  if (phase === 'ended') return;
+  const type = enlistedSquads[myTeam][index];
+  if (!type) return;
+  budget += unitDefs[type].cost;
+  enlistedSquads[myTeam].splice(index, 1);
+  renderBarracksRoster();
+  updateSize();
+  updateHUD();
+  syncMySquadsToNet();
+}
+
+function setFormation(form) {
+  teamFormation[myTeam] = form;
+  ['line', 'wedge', 'spread'].forEach(f => {
+    const el = document.getElementById('form-' + f);
+    if (el) el.classList.toggle('active', f === form);
+  });
+  syncMySquadsToNet();
+}
+
+function setStance(stance) {
+  teamStance[myTeam] = stance;
+  ['aggressive', 'defensive', 'hold'].forEach(s => {
+    const el = document.getElementById('stance-' + s);
+    if (el) el.classList.toggle('active', s === stance);
+  });
+  ['aggressive', 'hold', 'retreat'].forEach(s => {
+    const el = document.getElementById('live-stance-' + s);
+    if (el) el.classList.toggle('active', s === stance);
+  });
+  if (netMode !== 'ai') {
+    sendNet({
+      type: 'armyOrder',
+      team: myTeam,
+      stance,
+      rally: teamRally[myTeam] ? { x: teamRally[myTeam].x, z: teamRally[myTeam].z } : null
+    });
+  }
+}
+
+function setRallyPoint(x, z) {
+  teamRally[myTeam] = new THREE.Vector3(x, 0, z);
+  updateRallyVisuals();
+  if (netMode !== 'ai') {
+    sendNet({
+      type: 'armyOrder',
+      team: myTeam,
+      stance: teamStance[myTeam],
+      rally: { x, z }
+    });
+  }
+}
+
+function clearRally() {
+  teamRally[myTeam] = null;
+  updateRallyVisuals();
+  if (netMode !== 'ai') {
+    sendNet({ type: 'armyOrder', team: myTeam, stance: teamStance[myTeam], rally: null });
+  }
+}
+
+function updateRallyVisuals() {
+  ['blue', 'red'].forEach(team => {
+    const flag = rallyFlags[team];
+    const r = teamRally[team];
+    if (!flag) return;
+    if (r) {
+      flag.visible = true;
+      flag.position.set(r.x, 0, r.z);
+    } else {
+      flag.visible = false;
+    }
+  });
+  const label = document.getElementById('rallyStatusText');
+  if (label) {
+    const r = teamRally[myTeam];
+    label.textContent = r ? `Rally: (${r.x.toFixed(1)}, ${r.z.toFixed(1)})` : 'Rally Point: Auto-March';
+  }
+}
+
+function renderBarracksRoster() {
+  const list = enlistedSquads[myTeam];
+  const cap = getMaxSquadCap(myTeam);
+  const container = document.getElementById('enlistedRoster');
+  const countBadge = document.getElementById('squad-count-badge');
+  const troopsLabel = document.getElementById('total-troops-label');
+
+  countBadge.textContent = list.length;
+  const totalTroops = list.reduce((sum, t) => sum + unitDefs[t].count, 0);
+  troopsLabel.textContent = `${totalTroops} Troops (${list.length}/${cap} Squads)`;
+
+  ['footman', 'archer', 'ram', 'cavalry'].forEach(t => {
+    const btn = document.getElementById('buy-' + t);
+    if (btn) btn.disabled = budget < unitDefs[t].cost || list.length >= cap;
+  });
+
+  if (list.length === 0) {
+    container.innerHTML = `<span style="font-size:11px; color:var(--text-muted);">No squads recruited yet.</span>`;
+    return;
+  }
+
+  container.innerHTML = list.map((t, idx) => `
+    <span class="roster-pill">
+      ${unitDefs[t].name} (${unitDefs[t].count})
+      <button onclick="removeSquad(${idx})">✕</button>
+    </span>
+  `).join('');
+}
+
+function launchManualPlayerRaid() {
+  const squads = enlistedSquads[myTeam] || [];
+  if (squads.length === 0) {
+    const statusEl = document.getElementById('mpStatus');
+    if (statusEl) statusEl.textContent = 'Recruit at least 1 squad in Warband first!';
+    return;
+  }
+
+  spawnSquadWave(myTeam, squads);
+  if (netMode !== 'ai') {
+    sendNet({ type: 'spawnWave', team: myTeam, squads });
+  }
+
+  const statusEl = document.getElementById('mpStatus');
+  if (statusEl) {
+    statusEl.textContent = `🚀 Dispatched ${squads.length} squad(s) to attack enemy Barracks!`;
+  }
+  updateHUD();
+}
+
+function spawnSingleUnit(team, type, x, z, forcedId = null) {
+  const def = unitDefs[type];
+  const visual = buildUnitMesh(type, team);
+  visual.root.position.set(x, 0, z);
+
+  const unit = {
+    id: forcedId ?? nextUnitId++,
+    team,
+    type,
+    x,
+    z,
+    vx: 0,
+    vz: 0,
+    hp: def.hp,
+    maxHp: def.hp,
+    speed: def.speed * (0.94 + Math.random() * 0.12),
+    range: def.range,
+    attackCooldown: def.attackCooldown,
+    cdTimer: Math.random() * 0.4,
+    state: 'MARCH',
+    target: null,
+    stunTimer: 0,
+    flashTimer: 0,
+    animPhase: Math.random() * Math.PI * 2,
+    attackAnim: 0,
+    dying: false,
+    deathTimer: 0,
+    launchVel: new THREE.Vector3(),
+    visual
+  };
+  units.push(unit);
+  return unit;
+}
+
+function selectPiece(idx) {
+  const myPieces = myTeam === 'blue' ? bluePieces : redPieces;
+  const highlightHex = myTeam === 'blue' ? 0x38bdf8 : 0xf87171;
+  myPieces.forEach((p, i) => {
+    p.material.emissive.setHex(i === idx ? highlightHex : 0x000000);
+    p.material.emissiveIntensity = i === idx ? 0.35 : 0;
+  });
+  selectedIdx = idx;
+}
+
+function setShape(shape) {
+  currentShape = shape;
+  document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('s-' + shape).classList.add('active');
+}
+
+function setMaterial(mat) {
+  currentMaterial = mat;
+  document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mat-' + mat).classList.add('active');
+  updateSize();
+}
+
+function updateSize() {
+  currentSize.w = parseFloat(document.getElementById('sizeW').value);
+  currentSize.h = parseFloat(document.getElementById('sizeH').value);
+  currentSize.d = parseFloat(document.getElementById('sizeD').value);
+  document.getElementById('w-val').textContent = currentSize.w.toFixed(1) + ' m';
+  document.getElementById('h-val').textContent = currentSize.h.toFixed(1) + ' m';
+  document.getElementById('d-val').textContent = currentSize.d.toFixed(1) + ' m';
+
+  const cost = calcPieceCost(currentSize.w, currentSize.h, currentSize.d, currentMaterial);
+  const hp = calcPieceHP(currentSize.w, currentSize.h, currentSize.d, currentMaterial);
+  document.getElementById('piece-cost-preview').textContent = `$${cost} • ${hp} HP`;
+  const btn = document.getElementById('spawnBtn');
+  btn.textContent = `➕ Deploy ${materials[currentMaterial].name} ($${cost})`;
+  btn.disabled = cost > budget;
+}
+
+function spawnPiece() {
+  if (phase === 'ended') return;
+  const cost = calcPieceCost(currentSize.w, currentSize.h, currentSize.d, currentMaterial);
+  if (budget < cost) return;
+
+  budget -= cost;
+  const baseX = myTeam === 'blue' ? -15.5 : 15.5;
+  const x = baseX + (Math.random() - 0.5) * 6.5;
+  const y = Math.max(currentSize.h / 2 + 1.0, 2.2);
+  const z = (Math.random() - 0.5) * 12.0;
+  spawnTeamPiece(myTeam, x, y, z, currentSize.w, currentSize.h, currentSize.d, currentMaterial, currentShape, cost);
+  renderBarracksRoster();
+  updateSize();
+  updateHUD();
+}
+
+function removePieceByTeam(team, idx) {
+  const pArr = team === 'blue' ? bluePieces : redPieces;
+  const bArr = team === 'blue' ? blueBodies : redBodies;
+  if (!pArr[idx]) return;
+  scene.remove(pArr[idx]);
+  world.removeBody(bArr[idx]);
+  pArr.splice(idx, 1);
+  bArr.splice(idx, 1);
+}
+
+function refundSelected() {
+  if (phase === 'ended' || selectedIdx === null) return;
+  const pArr = myTeam === 'blue' ? bluePieces : redPieces;
+  const mesh = pArr[selectedIdx];
+  if (!mesh) return;
+  budget += mesh.userData.cost || 0;
+
+  const idxToRemove = selectedIdx;
+  removePieceByTeam(myTeam, idxToRemove);
+  if (netMode !== 'ai') sendNet({ type: 'removePiece', team: myTeam, idx: idxToRemove });
+  syncMyBaseToServer();
+
+  selectPiece(null);
+  renderBarracksRoster();
+  updateSize();
+  updateHUD();
+}
+
+function loadTemplate(name) {
+  if (phase === 'ended' || !name || !templates[name]) return;
+  const pArr = myTeam === 'blue' ? bluePieces : redPieces;
+  let totalRefund = pArr.reduce((sum, p) => sum + (p.userData.cost || 0), 0);
+  budget += totalRefund;
+
+  while (pArr.length > 0) {
+    removePieceByTeam(myTeam, 0);
+    if (netMode !== 'ai') sendNet({ type: 'removePiece', team: myTeam, idx: 0 });
+  }
+  selectedIdx = null;
+
+  const mirror = myTeam === 'red' ? -1 : 1;
+  templates[name].forEach(p => {
+    const cost = calcPieceCost(p.w, p.h, p.d, p.material);
+    if (budget >= cost) {
+      budget -= cost;
+      spawnTeamPiece(myTeam, p.x * mirror, p.y, p.z, p.w, p.h, p.d, p.material, p.shape, cost);
+    }
+  });
+  renderBarracksRoster();
+  updateSize();
+  updateHUD();
+}
+
+function saveStructure() {
+  const pArr = myTeam === 'blue' ? bluePieces : redPieces;
+  const data = pArr.map(p => ({
+    x: p.position.x, y: p.position.y, z: p.position.z,
+    w: p.userData.w, h: p.userData.h, d: p.userData.d,
+    shape: p.userData.shape, material: p.userData.material
+  }));
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${myTeam}-fortress-barracks.json`;
+  a.click();
+}
+
+function selectWeapon(wKey) {
+  selectedWeapon = wKey;
+  document.querySelectorAll('.weapon-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('w-' + wKey).classList.add('active');
+  updateHUD();
+}
+
+function updatePower() {
+  firePower = parseInt(document.getElementById('firePower').value, 10);
+  document.getElementById('power-val').textContent = firePower + '%';
+  updateAimVisuals();
+}
+
+function updateAimVisuals() {
+  aimMarker.position.set(aimTarget.x, 0.04, aimTarget.z);
+
+  const originX = myTeam === 'blue' ? -17.5 : 17.5;
+  const origin = new THREE.Vector3(originX, 5.2, 0);
+  const pts = [];
+  const steps = 24;
+  const g = 9.82;
+  const powerFactor = firePower / 80;
+  const flightTime = (selectedWeapon === 'mortar' ? 1.75 : 1.1) / powerFactor;
+
+  const vx = (aimTarget.x - origin.x) / flightTime;
+  const vz = (aimTarget.z - origin.z) / flightTime;
+  const vy = (aimTarget.y - origin.y + 0.5 * g * flightTime * flightTime) / flightTime;
+
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * flightTime;
+    pts.push(new THREE.Vector3(
+      origin.x + vx * t,
+      Math.max(0.05, origin.y + vy * t - 0.5 * g * t * t),
+      origin.z + vz * t
+    ));
+  }
+  aimLine.geometry.setFromPoints(pts);
+  aimLine.computeLineDistances();
+}
+
+function launchProjectile(owner, weaponKey, originVec, targetVec, powerPct) {
+  const wData = weapons[weaponKey];
+  if (weaponKey === 'seismic') {
+    const enemyTeam = owner === 'blue' ? 'red' : 'blue';
+    if (owner === 'blue') enemyQuakeTimer = 4.0;
+    else playerQuakeTimer = 4.0;
+    spawnShockRing(targetVec.x, 0.08, targetVec.z, 0xef4444);
+
+    units.forEach(u => {
+      if (!u.dying && u.team === enemyTeam) {
+        const d = Math.hypot(u.x - targetVec.x, u.z - targetVec.z);
+        if (d < 9.5) u.stunTimer = Math.max(u.stunTimer, 3.2);
+      }
+    });
+    return;
+  }
+
+  const g = 9.82;
+  const powerFactor = powerPct / 80;
+  const flightTime = (weaponKey === 'mortar' ? 1.75 : 1.1) / powerFactor;
+
+  const vx = (targetVec.x - originVec.x) / flightTime;
+  const vz = (targetVec.z - originVec.z) / flightTime;
+  const vy = (targetVec.y - originVec.y + 0.5 * g * flightTime * flightTime) / flightTime;
+
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(wData.radius, 16, 16),
+    new THREE.MeshStandardMaterial({
+      color: wData.color,
+      emissive: wData.color,
+      emissiveIntensity: 0.65
+    })
+  );
+  mesh.position.copy(originVec);
+  mesh.castShadow = true;
+  scene.add(mesh);
+
+  const body = new CANNON.Body({
+    mass: wData.mass,
+    position: new CANNON.Vec3(originVec.x, originVec.y, originVec.z),
+    shape: new CANNON.Sphere(wData.radius),
+    velocity: new CANNON.Vec3(vx, vy, vz)
+  });
+  world.addBody(body);
+
+  projectiles.push({
+    owner,
+    weaponKey,
+    mesh,
+    body,
+    age: 0,
+    detonated: false
+  });
+}
+
+function fireSelectedWeapon() {
+  if (phase === 'ended') return;
+  const wData = weapons[selectedWeapon];
+  if (budget < wData.cost) return;
+
+  budget -= wData.cost;
+  const originX = myTeam === 'blue' ? -17.5 : 17.5;
+  const origin = new THREE.Vector3(originX, 5.2, 0);
+  launchProjectile(myTeam, selectedWeapon, origin, aimTarget, firePower);
+
+  if (netMode !== 'ai') {
+    sendNet({
+      type: 'fire',
+      owner: myTeam,
+      weaponKey: selectedWeapon,
+      ox: origin.x, oy: origin.y, oz: origin.z,
+      tx: aimTarget.x, ty: aimTarget.y, tz: aimTarget.z,
+      powerPct: firePower
+    });
+  }
+  updateHUD();
+}
+
+function spawnShockRing(x, y, z, colorHex) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.3, 0.7, 32),
+    new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide, transparent: true, opacity: 0.9 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(x, y, z);
+  scene.add(ring);
+  effects.push({ mesh: ring, age: 0, maxAge: 0.65 });
+}
+
+function triggerBlast(pos, radius, force, attackerTeam = null) {
+  spawnShockRing(pos.x, Math.max(0.08, pos.y), pos.z, 0xf59e0b);
+  const allBodies = [...blueBodies, ...redBodies, blueCoreBody, redCoreBody];
+  allBodies.forEach(b => {
+    if (!b) return;
+    const dx = b.position.x - pos.x;
+    const dy = b.position.y - pos.y;
+    const dz = b.position.z - pos.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (dist < radius && dist > 0.01) {
+      const falloff = 1 - dist / radius;
+      const impulse = new CANNON.Vec3(
+        (dx / dist) * force * falloff,
+        (Math.abs(dy) / dist + 0.45) * force * falloff,
+        (dz / dist) * force * falloff
+      );
+      b.applyImpulse(impulse, b.position);
+    }
+  });
+
+  for (let i = bluePieces.length - 1; i >= 0; i--) {
+    const d = bluePieces[i].position.distanceTo(pos);
+    if (d < radius) damageStructurePiece('blue', i, (1 - d / radius) * 95, attackerTeam);
+  }
+  for (let i = redPieces.length - 1; i >= 0; i--) {
+    const d = redPieces[i].position.distanceTo(pos);
+    if (d < radius) damageStructurePiece('red', i, (1 - d / radius) * 95, attackerTeam);
+  }
+
+  units.forEach(u => {
+    if (u.dying) return;
+    const dx = u.x - pos.x;
+    const dz = u.z - pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < radius) {
+      const falloff = 1 - dist / radius;
+      const launchVec = new THREE.Vector3(
+        (dx / Math.max(0.1, dist)) * 12 * falloff,
+        6 + 8 * falloff,
+        (dz / Math.max(0.1, dist)) * 12 * falloff
+      );
+      damageUnit(u, 145 * falloff, launchVec);
+    }
+  });
+}
+
+// ==========================================
+// UNIT COMBAT, ARROWS & STATE MACHINE
+// ==========================================
+function damageUnit(u, amount, launchVec = null) {
+  if (u.dying) return;
+  u.hp -= amount;
+  u.flashTimer = 0.12;
+
+  u.visual.hpBar.visible = true;
+  const ratio = Math.max(0, u.hp / u.maxHp);
+  u.visual.hpFill.scale.x = Math.max(0.01, ratio);
+  u.visual.hpFill.position.x = -(1 - ratio) * 0.255;
+
+  if (u.hp <= 0) {
+    u.hp = 0;
+    u.dying = true;
+    u.deathTimer = 0;
+    u.visual.hpBar.visible = false;
+    if (launchVec) u.launchVel.copy(launchVec);
+    else u.launchVel.set((Math.random() - 0.5) * 2, 2.2, (Math.random() - 0.5) * 2);
+  }
+}
+
+function spawnArrow(fromX, fromZ, toX, toZ, team, targetRef) {
+  const color = team === 'blue' ? 0x7dd3fc : 0xfca5a5;
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.015, 0.015, 0.42, 5),
+    new THREE.MeshBasicMaterial({ color })
+  );
+  mesh.rotation.z = Math.PI / 2;
+  mesh.position.set(fromX, 0.65, fromZ);
+  scene.add(mesh);
+
+  const dist = Math.hypot(toX - fromX, toZ - fromZ);
+  const flightTime = Math.max(0.28, Math.min(0.75, dist / 14));
+  arrows.push({
+    mesh,
+    sx: fromX, sz: fromZ,
+    tx: toX, tz: toZ,
+    t: 0,
+    duration: flightTime,
+    team,
+    targetRef
+  });
+}
+
+function findBestTargetForUnit(u) {
+  const enemyTeam = u.team === 'blue' ? 'red' : 'blue';
+  const enemyPieces = enemyTeam === 'blue' ? bluePieces : redPieces;
+  const enemyCore = enemyTeam === 'blue' ? blueCoreMesh : redCoreMesh;
+
+  let bestUnit = null;
+  let bestUnitDist = Infinity;
+
+  for (const other of units) {
+    if (other.dying || other.team !== enemyTeam) continue;
+    let d = Math.hypot(other.x - u.x, other.z - u.z);
+    if (u.type === 'cavalry' && other.type === 'archer') d *= 0.55;
+    if (u.type === 'ram') continue;
+    if (d < bestUnitDist) {
+      bestUnitDist = d;
+      bestUnit = other;
+    }
+  }
+
+  // Priority 2: Enemy Barracks & Fortress walls (units prioritize enemy Barracks slightly closer!)
+  let bestPieceIdx = -1;
+  let bestPieceDist = Infinity;
+  let bestPieceScore = Infinity;
+  for (let i = 0; i < enemyPieces.length; i++) {
+    const p = enemyPieces[i];
+    if (p.position.y > 2.4) continue;
+    const edgeDist = Math.max(0, Math.hypot(p.position.x - u.x, p.position.z - u.z) - Math.max(p.userData.w, p.userData.d) * 0.45);
+    const score = isBarracksPiece(p) ? edgeDist * 0.72 : edgeDist;
+    if (score < bestPieceScore) {
+      bestPieceScore = score;
+      bestPieceDist = edgeDist;
+      bestPieceIdx = i;
+    }
+  }
+
+  const coreDist = enemyCore ? Math.max(0, Math.hypot(enemyCore.position.x - u.x, enemyCore.position.z - u.z) - 0.75) : Infinity;
+
+  if (u.type === 'ram') {
+    if (bestPieceIdx !== -1 && bestPieceDist < coreDist + 2.5) {
+      return { kind: 'piece', team: enemyTeam, idx: bestPieceIdx, dist: bestPieceDist, x: enemyPieces[bestPieceIdx].position.x, z: enemyPieces[bestPieceIdx].position.z };
+    }
+    if (enemyCore) return { kind: 'core', team: enemyTeam, dist: coreDist, x: enemyCore.position.x, z: enemyCore.position.z };
+  }
+
+  if (bestUnit && bestUnitDist <= Math.max(u.range * 1.35, 4.2)) {
+    return { kind: 'unit', unit: bestUnit, dist: bestUnitDist, x: bestUnit.x, z: bestUnit.z };
+  }
+  if (bestPieceIdx !== -1 && bestPieceDist < coreDist) {
+    return { kind: 'piece', team: enemyTeam, idx: bestPieceIdx, dist: bestPieceDist, x: enemyPieces[bestPieceIdx].position.x, z: enemyPieces[bestPieceIdx].position.z };
+  }
+  if (enemyCore) {
+    return { kind: 'core', team: enemyTeam, dist: coreDist, x: enemyCore.position.x, z: enemyCore.position.z };
+  }
+  return null;
+}
+
+function updateUnitsSimulation(dt, time) {
+  aiTargetTimer -= dt;
+  const refreshTargets = aiTargetTimer <= 0;
+  if (refreshTargets) aiTargetTimer = 0.25;
+
+  const blueMorale = blueCoreHP > 60 ? 1.12 : (blueCoreHP < 25 ? 0.88 : 1.0);
+  const redMorale  = redCoreHP > 60 ? 1.12 : (redCoreHP < 25 ? 0.88 : 1.0);
+
+  for (let i = units.length - 1; i >= 0; i--) {
+    const u = units[i];
+    const v = u.visual;
+
+    if (u.dying) {
+      u.deathTimer += dt;
+      u.x += u.launchVel.x * dt;
+      u.z += u.launchVel.z * dt;
+      v.root.position.x = u.x;
+      v.root.position.z = u.z;
+      v.root.position.y = Math.max(-0.3, v.root.position.y + u.launchVel.y * dt);
+      u.launchVel.y -= 18 * dt;
+      v.bodyGrp.rotation.x = Math.min(Math.PI / 2, u.deathTimer * 4.5);
+      if (u.deathTimer > 2.2) {
+        scene.remove(v.root);
+        units.splice(i, 1);
+      }
+      continue;
+    }
+
+    if (u.flashTimer > 0) {
+      u.flashTimer -= dt;
+      v.bodyGrp.traverse(m => {
+        if (m.isMesh && m.material.emissive) {
+          m.material.emissive.setHex(u.flashTimer > 0 ? 0xffffff : 0x000000);
+          m.material.emissiveIntensity = u.flashTimer > 0 ? 0.75 : 0;
+        }
+      });
+    }
+
+    if (u.stunTimer > 0) {
+      u.stunTimer -= dt;
+      v.bodyGrp.rotation.z = Math.sin(time * 0.04) * 0.35;
+      continue;
+    } else {
+      v.bodyGrp.rotation.z = 0;
+    }
+
+    if (netMode !== 'guest') {
+      if (refreshTargets || !u.target || (u.target.kind === 'unit' && u.target.unit.dying)) {
+        u.target = findBestTargetForUnit(u);
+      }
+
+      const stance = teamStance[u.team];
+      const rally = teamRally[u.team];
+      const morale = u.team === 'blue' ? blueMorale : redMorale;
+      const homeX = u.team === 'blue' ? -14.0 : 14.0;
+
+      let moveGoalX = null, moveGoalZ = null;
+      let isAttacking = false;
+
+      if (stance === 'retreat') {
+        u.state = 'MARCH';
+        moveGoalX = homeX;
+        moveGoalZ = u.z * 0.7;
+      } else if (rally) {
+        const distToRally = Math.hypot(rally.x - u.x, rally.z - u.z);
+        if (distToRally > 0.9) {
+          u.state = 'MARCH';
+          moveGoalX = rally.x;
+          moveGoalZ = rally.z;
+        } else if (u.target && u.target.dist <= u.range) {
+          isAttacking = true;
+        }
+      } else if (stance === 'hold') {
+        if (u.target && u.target.dist <= u.range) isAttacking = true;
+        else u.state = 'HOLD';
+      } else if (stance === 'defensive') {
+        if (u.target && u.target.dist <= u.range) {
+          isAttacking = true;
+        } else if (u.target && u.target.dist <= 6.5) {
+          u.state = 'MARCH';
+          moveGoalX = u.target.x;
+          moveGoalZ = u.target.z;
+        } else {
+          u.state = 'HOLD';
+        }
+      } else {
+        if (u.target) {
+          if (u.target.kind === 'unit') {
+            u.target.x = u.target.unit.x;
+            u.target.z = u.target.unit.z;
+            u.target.dist = Math.hypot(u.target.x - u.x, u.target.z - u.z);
+          } else if (u.target.kind === 'piece') {
+            const pArr = u.target.team === 'blue' ? bluePieces : redPieces;
+            const piece = pArr[u.target.idx];
+            if (!piece) { u.target = null; }
+            else {
+              u.target.x = piece.position.x;
+              u.target.z = piece.position.z;
+              u.target.dist = Math.max(0, Math.hypot(u.target.x - u.x, u.target.z - u.z) - Math.max(piece.userData.w, piece.userData.d) * 0.45);
+            }
+          } else if (u.target.kind === 'core') {
+            const cMesh = u.target.team === 'blue' ? blueCoreMesh : redCoreMesh;
+            if (cMesh) {
+              u.target.x = cMesh.position.x;
+              u.target.z = cMesh.position.z;
+              u.target.dist = Math.max(0, Math.hypot(u.target.x - u.x, u.target.z - u.z) - 0.75);
+            }
+          }
+
+          if (u.target && u.target.dist <= u.range) {
+            isAttacking = true;
+          } else if (u.target) {
+            u.state = 'MARCH';
+            moveGoalX = u.target.x;
+            moveGoalZ = u.target.z;
+          }
+        }
+      }
+
+      if (!isAttacking && moveGoalX !== null) {
+        let dx = moveGoalX - u.x;
+        let dz = moveGoalZ - u.z;
+        const len = Math.hypot(dx, dz) || 1;
+        dx /= len;
+        dz /= len;
+
+        let sepX = 0, sepZ = 0;
+        for (const other of units) {
+          if (other === u || other.dying) continue;
+          const sdx = u.x - other.x;
+          const sdz = u.z - other.z;
+          const sDist = Math.hypot(sdx, sdz);
+          const minSep = unitDefs[u.type].radius + unitDefs[other.type].radius;
+          if (sDist > 0.001 && sDist < minSep) {
+            const push = (minSep - sDist) / minSep;
+            sepX += (sdx / sDist) * push * 1.25;
+            sepZ += (sdz / sDist) * push * 1.25;
+          }
+        }
+
+        const vx = (dx + sepX) * u.speed * morale;
+        const vz = (dz + sepZ) * u.speed * morale;
+        u.x = THREE.MathUtils.clamp(u.x + vx * dt, -(MAP_HALF_W - 1.2), MAP_HALF_W - 1.2);
+        u.z = THREE.MathUtils.clamp(u.z + vz * dt, -(MAP_HALF_D - 1.0), MAP_HALF_D - 1.0);
+        u.vx = vx;
+        u.vz = vz;
+        v.root.rotation.y = Math.atan2(-vz, vx);
+      } else {
+        u.vx = 0;
+        u.vz = 0;
+        if (u.target) {
+          v.root.rotation.y = Math.atan2(-(u.target.z - u.z), u.target.x - u.x);
+        }
+      }
+
+      u.cdTimer -= dt;
+      if (isAttacking && u.target && u.cdTimer <= 0) {
+        u.cdTimer = u.attackCooldown;
+        u.attackAnim = 0.28;
+        const def = unitDefs[u.type];
+
+        if (u.type === 'archer') {
+          spawnArrow(u.x, u.z, u.target.x, u.target.z, u.team, u.target);
+        } else {
+          if (u.target.kind === 'unit') {
+            u.state = 'ENGAGE';
+            let dmg = def.unitDmg;
+            if (u.type === 'footman' && u.target.unit.type === 'cavalry') dmg *= 1.55;
+            if (u.type === 'cavalry' && u.target.unit.type === 'archer') dmg *= 1.65;
+            damageUnit(u.target.unit, dmg);
+          } else if (u.target.kind === 'piece') {
+            u.state = 'BREACH';
+            damageStructurePiece(u.target.team, u.target.idx, def.structDmg, u.team);
+          } else if (u.target.kind === 'core') {
+            u.state = 'ASSAULT_CORE';
+            if (u.target.team === 'blue') blueCoreHP -= def.coreDmg;
+            else redCoreHP -= def.coreDmg;
+            spawnShockRing(u.target.x, 0.1, u.target.z, u.team === 'blue' ? 0x38bdf8 : 0xf87171);
+          }
+        }
+      }
+    }
+
+    v.root.position.set(u.x, 0, u.z);
+    const speedMag = Math.hypot(u.vx, u.vz);
+    if (speedMag > 0.15) {
+      u.animPhase += dt * (u.type === 'cavalry' ? 16 : 12);
+      const swing = Math.sin(u.animPhase) * 0.55;
+      if (v.leftLeg) v.leftLeg.rotation.z = swing;
+      if (v.rightLeg) v.rightLeg.rotation.z = -swing;
+      v.bodyGrp.position.y = Math.abs(Math.sin(u.animPhase)) * 0.05;
+    } else {
+      if (v.leftLeg) v.leftLeg.rotation.z = 0;
+      if (v.rightLeg) v.rightLeg.rotation.z = 0;
+      v.bodyGrp.position.y = 0;
+    }
+
+    if (u.attackAnim > 0) {
+      u.attackAnim -= dt;
+      const p = Math.sin((1 - u.attackAnim / 0.28) * Math.PI);
+      if (v.rightArm) v.rightArm.rotation.z = -p * 1.15;
+      if (v.ramLog) v.ramLog.position.x = 0.15 + p * 0.35;
+    } else {
+      if (v.rightArm) v.rightArm.rotation.z = 0;
+      if (v.ramLog) v.ramLog.position.x = 0.15;
+    }
+
+    if (v.hpBar.visible) {
+      v.hpBar.quaternion.copy(camera.quaternion);
+    }
+  }
+
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    const a = arrows[i];
+    a.t += dt;
+    const frac = Math.min(1, a.t / a.duration);
+    const curX = a.sx + (a.tx - a.sx) * frac;
+    const curZ = a.sz + (a.tz - a.sz) * frac;
+    const arcY = 0.65 + Math.sin(frac * Math.PI) * 2.1;
+    a.mesh.position.set(curX, arcY, curZ);
+
+    if (frac >= 1) {
+      if (netMode !== 'guest' && a.targetRef) {
+        const def = unitDefs.archer;
+        if (a.targetRef.kind === 'unit' && a.targetRef.unit && !a.targetRef.unit.dying) {
+          let dmg = def.unitDmg;
+          if (a.targetRef.unit.type === 'footman') dmg *= 1.35;
+          damageUnit(a.targetRef.unit, dmg);
+        } else if (a.targetRef.kind === 'piece') {
+          damageStructurePiece(a.targetRef.team, a.targetRef.idx, def.structDmg, a.team);
+        } else if (a.targetRef.kind === 'core') {
+          if (a.targetRef.team === 'blue') blueCoreHP -= def.coreDmg;
+          else redCoreHP -= def.coreDmg;
+        }
+      }
+      scene.remove(a.mesh);
+      arrows.splice(i, 1);
+    }
+  }
+
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i];
+    d.age += dt;
+    d.mesh.position.x += d.vx * dt;
+    d.mesh.position.y += d.vy * dt;
+    d.mesh.position.z += d.vz * dt;
+    d.vy -= 14 * dt;
+    d.mesh.rotation.x += 5 * dt;
+    d.mesh.rotation.y += 4 * dt;
+    if (d.age > 0.9) {
+      scene.remove(d.mesh);
+      debris.splice(i, 1);
+    }
+  }
+}
+
+function applyUnitSnapshot(snapshotList) {
+  const seen = new Set();
+  snapshotList.forEach(s => {
+    seen.add(s.id);
+    let u = units.find(item => item.id === s.id);
+    if (!u) {
+      u = spawnSingleUnit(s.team, s.type, s.x, s.z, s.id);
+    }
+    u.vx = (s.x - u.x) * 8;
+    u.vz = (s.z - u.z) * 8;
+    u.x = s.x;
+    u.z = s.z;
+    if (s.hp < u.hp) damageUnit(u, u.hp - s.hp);
+  });
+
+  for (let i = units.length - 1; i >= 0; i--) {
+    if (!seen.has(units[i].id) && !units[i].dying) {
+      damageUnit(units[i], units[i].hp + 10);
+    }
+  }
+}
+
+function updateHUD() {
+  const myPts = raidSystem.points[myTeam] || 0;
+  const bCount = countTeamBarracks(myTeam);
+  document.getElementById('hud-mode').textContent = `${myPts} PTS • ${bCount} BRK`;
+
+  const phaseEl = document.getElementById('hud-phase');
+  phaseEl.textContent = 'OPEN SIEGE';
+  phaseEl.style.color = '#34d399';
+
+  document.getElementById('hud-timer').textContent = `Raid ${Math.max(0, raidSystem.nextRaidIn).toFixed(0)}s`;
+  document.getElementById('hud-budget').textContent = '$' + budget.toLocaleString();
+
+  document.getElementById('hud-blue-hp').textContent = Math.max(0, Math.round(blueCoreHP)) + '%';
+  document.getElementById('bar-blue-hp').style.width = Math.max(0, blueCoreHP) + '%';
+
+  document.getElementById('hud-red-hp').textContent = Math.max(0, Math.round(redCoreHP)) + '%';
+  document.getElementById('bar-red-hp').style.width = Math.max(0, redCoreHP) + '%';
+
+  const blueAlive = units.filter(u => !u.dying && u.team === 'blue').length;
+  const redAlive  = units.filter(u => !u.dying && u.team === 'red').length;
+  document.getElementById('hud-armies').innerHTML = `<span style="color:#38bdf8;">${blueAlive}</span> vs <span style="color:#f87171;">${redAlive}</span>`;
+
+  const wData = weapons[selectedWeapon];
+  const fireBtn = document.getElementById('fireBtn');
+  if (fireBtn) {
+    fireBtn.textContent = `🚀 Fire ${wData.name} ($${wData.cost})`;
+    fireBtn.disabled = budget < wData.cost;
+  }
+}
+
+function syncMovedPieceToNet(idx) {
+  if (idx === null) return;
+  const bArr = myTeam === 'blue' ? blueBodies : redBodies;
+  const b = bArr[idx];
+  if (!b) return;
+  if (netMode !== 'ai') {
+    sendNet({
+      type: 'movePiece',
+      team: myTeam,
+      idx,
+      x: b.position.x, y: b.position.y, z: b.position.z,
+      qx: b.quaternion.x, qy: b.quaternion.y, qz: b.quaternion.z, qw: b.quaternion.w
+    });
+  }
+}
+
+function rotateBody(idx, axis, angleRad) {
+  const bArr = myTeam === 'blue' ? blueBodies : redBodies;
+  if (idx === null || !bArr[idx]) return;
+  const q = new THREE.Quaternion().setFromAxisAngle(axis, angleRad);
+  const cur = new THREE.Quaternion(
+    bArr[idx].quaternion.x,
+    bArr[idx].quaternion.y,
+    bArr[idx].quaternion.z,
+    bArr[idx].quaternion.w
+  );
+  cur.premultiply(q);
+  bArr[idx].quaternion.set(cur.x, cur.y, cur.z, cur.w);
+  bArr[idx].angularVelocity.set(0, 0, 0);
+  bArr[idx].velocity.set(0, 0, 0);
+  syncMovedPieceToNet(idx);
+}
+
+function onMouseDown(e) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+
+  // Check if clicking one of your own base/Barracks pieces first
+  const myPieces = myTeam === 'blue' ? bluePieces : redPieces;
+  const hits = raycaster.intersectObjects(myPieces);
+  if (hits.length > 0) {
+    // Handle clicking a child banner on a Barracks mesh
+    let hitObj = hits[0].object;
+    while (hitObj && myPieces.indexOf(hitObj) === -1) hitObj = hitObj.parent;
+    const idx = myPieces.indexOf(hitObj);
+    if (idx !== -1) {
+      selectPiece(idx);
+      controls.enabled = false;
+      prevMouse = { x: e.clientX, y: e.clientY };
+
+      if (e.button === 2 || e.shiftKey) {
+        interactionMode = 'rotate';
+      } else if (e.button === 0) {
+        interactionMode = 'move';
+        dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), hits[0].point);
+      }
+      return;
+    }
+  }
+
+  if (e.button === 0) {
+    selectPiece(null);
+    const validAim = myTeam === 'blue' ? aimTarget.x > 2.0 : aimTarget.x < -2.0;
+    const onArtilleryTab = !document.getElementById('destroyControls').classList.contains('hidden');
+    if (validAim && onArtilleryTab) fireSelectedWeapon();
+  } else if (e.button === 2) {
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const pt = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(groundPlane, pt)) {
+      const rx = THREE.MathUtils.clamp(pt.x, -(MAP_HALF_W - 1.5), MAP_HALF_W - 1.5);
+      const rz = THREE.MathUtils.clamp(pt.z, -(MAP_HALF_D - 1.2), MAP_HALF_D - 1.2);
+      setRallyPoint(rx, rz);
+    }
+  }
+}
+
+function onMouseMove(e) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  const bArr = myTeam === 'blue' ? blueBodies : redBodies;
+  if (interactionMode && selectedIdx !== null && bArr[selectedIdx]) {
+    if (interactionMode === 'rotate') {
+      const dx = e.clientX - prevMouse.x;
+      const dy = e.clientY - prevMouse.y;
+      prevMouse = { x: e.clientX, y: e.clientY };
+      rotateBody(selectedIdx, new THREE.Vector3(0, 1, 0), dx * 0.015);
+      if (e.altKey || Math.abs(dy) > Math.abs(dx)) {
+        rotateBody(selectedIdx, new THREE.Vector3(1, 0, 0), dy * 0.015);
+      }
+    } else if (interactionMode === 'move') {
+      raycaster.setFromCamera(pointer, camera);
+      const pt = new THREE.Vector3();
+      if (raycaster.ray.intersectPlane(dragPlane, pt)) {
+        const minX = myTeam === 'blue' ? -BUILD_MAX_ABS_X : BUILD_MIN_ABS_X;
+        const maxX = myTeam === 'blue' ? -BUILD_MIN_ABS_X : BUILD_MAX_ABS_X;
+        const cx = THREE.MathUtils.clamp(pt.x, minX, maxX);
+        const cz = THREE.MathUtils.clamp(pt.z, -(MAP_HALF_D - 1.4), MAP_HALF_D - 1.4);
+        bArr[selectedIdx].position.set(cx, Math.max(bArr[selectedIdx].position.y, 0.35), cz);
+        bArr[selectedIdx].velocity.set(0, 0, 0);
+        syncMovedPieceToNet(selectedIdx);
+      }
+    }
+    return;
+  }
+
+  raycaster.setFromCamera(pointer, camera);
+  const enemyTargets = myTeam === 'blue' ? [...redPieces, redCoreMesh] : [...bluePieces, blueCoreMesh];
+  const hitObjs = raycaster.intersectObjects(enemyTargets, true);
+  if (hitObjs.length > 0) {
+    aimTarget.copy(hitObjs[0].point);
+  } else {
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const pt = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(groundPlane, pt)) {
+      const minX = myTeam === 'blue' ? 2.5 : -BUILD_MAX_ABS_X;
+      const maxX = myTeam === 'blue' ? BUILD_MAX_ABS_X : -2.5;
+      aimTarget.set(
+        THREE.MathUtils.clamp(pt.x, minX, maxX),
+        0.5,
+        THREE.MathUtils.clamp(pt.z, -(MAP_HALF_D - 1.0), MAP_HALF_D - 1.0)
+      );
+    }
+  }
+  updateAimVisuals();
+}
+
+function onMouseUp() {
+  if (interactionMode) {
+    interactionMode = null;
+    controls.enabled = true;
+    syncMyBaseToServer();
+  }
+}
+
+function onKeyDown(e) {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    fireSelectedWeapon();
+    return;
+  }
+
+  const bArr = myTeam === 'blue' ? blueBodies : redBodies;
+  if (selectedIdx === null || !bArr[selectedIdx]) return;
+  const step = Math.PI / 12;
+
+  switch (e.key.toLowerCase()) {
+    case 'r': rotateBody(selectedIdx, new THREE.Vector3(0, 1, 0), step); break;
+    case 't': rotateBody(selectedIdx, new THREE.Vector3(1, 0, 0), step); break;
+    case 'f': rotateBody(selectedIdx, new THREE.Vector3(0, 0, 1), step); break;
+    case 'q':
+      bArr[selectedIdx].position.y = Math.max(0.25, bArr[selectedIdx].position.y - 0.25);
+      bArr[selectedIdx].velocity.set(0, 0, 0);
+      syncMovedPieceToNet(selectedIdx);
+      break;
+    case 'e':
+      bArr[selectedIdx].position.y += 0.25;
+      bArr[selectedIdx].velocity.set(0, 0, 0);
+      syncMovedPieceToNet(selectedIdx);
+      break;
+    case 'delete':
+    case 'backspace':
+      refundSelected();
+      break;
+  }
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function endMatch(title, subtitle) {
+  phase = 'ended';
+  const blueAlive = units.filter(u => !u.dying && u.team === 'blue').length;
+  const redAlive  = units.filter(u => !u.dying && u.team === 'red').length;
+
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalSubtitle').textContent = subtitle;
+  document.getElementById('modalStats').innerHTML = `
+    <strong>Blue Raid Points:</strong> ${raidSystem.points.blue} pts (${countTeamBarracks('blue')} Barracks)<br>
+    <strong>Red Raid Points:</strong> ${raidSystem.points.red} pts (${countTeamBarracks('red')} Barracks)<br>
+    <strong>Blue Core Integrity:</strong> ${Math.max(0, Math.round(blueCoreHP))}%<br>
+    <strong>Red Core Integrity:</strong> ${Math.max(0, Math.round(redCoreHP))}%<br>
+    <strong>Surviving Troops:</strong> Blue ${blueAlive} vs Red ${redAlive}
+  `;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+function animate(time) {
+  requestAnimationFrame(animate);
+  const dt = Math.min((time - lastTime) / 1000, 0.05);
+  lastTime = time;
+
+  if (world && dt > 0 && phase !== 'ended') {
+    // Random AI Raids instead of a prep stopwatch
+    updateRandomRaids(dt);
+
+    // AI counter-artillery when active blue units are attacking
+    if (netMode === 'ai') {
+      const blueSoldiers = units.filter(u => !u.dying && u.team === 'blue');
+      if (blueSoldiers.length > 0) {
+        aiFireCooldown -= dt;
+        if (aiFireCooldown <= 0) {
+          aiFireCooldown = 4.2 + Math.random() * 2.0;
+          let aiWeapon = blueSoldiers.length >= 3 ? 'mortar' : 'cannon';
+          const pick = blueSoldiers[Math.floor(Math.random() * blueSoldiers.length)];
+          const aiOrigin = new THREE.Vector3(17.5, 5.2, 0);
+          const aiTarget = new THREE.Vector3(
+            pick.x + (Math.random() - 0.5) * 1.4,
+            0.4,
+            pick.z + (Math.random() - 0.5) * 1.4
+          );
+          launchProjectile('red', aiWeapon, aiOrigin, aiTarget, 80);
+        }
+      }
+    }
+
+    if (enemyQuakeTimer > 0) {
+      enemyQuakeTimer -= dt;
+      const wave = Math.sin(time * 0.03) * 32;
+      redBodies.forEach(b => b.applyForce(new CANNON.Vec3(wave * b.mass, 0, Math.cos(time * 0.025) * 20 * b.mass), b.position));
+    }
+    if (playerQuakeTimer > 0) {
+      playerQuakeTimer -= dt;
+      const wave = Math.sin(time * 0.03) * 26;
+      blueBodies.forEach(b => b.applyForce(new CANNON.Vec3(wave * b.mass, 0, Math.cos(time * 0.025) * 16 * b.mass), b.position));
+    }
+
+    updateUnitsSimulation(dt, time);
+
+    world.step(1 / 60, dt, 3);
+
+    for (let i = 0; i < bluePieces.length; i++) {
+      bluePieces[i].position.copy(blueBodies[i].position);
+      bluePieces[i].quaternion.copy(blueBodies[i].quaternion);
+    }
+    for (let i = 0; i < redPieces.length; i++) {
+      redPieces[i].position.copy(redBodies[i].position);
+      redPieces[i].quaternion.copy(redBodies[i].quaternion);
+    }
+
+    if (blueCoreMesh && blueCoreBody) {
+      blueCoreMesh.position.copy(blueCoreBody.position);
+      blueCoreMesh.rotation.y += dt * 1.8;
+      if (netMode !== 'guest') {
+        const speed = blueCoreBody.velocity.length();
+        if (speed > 1.4) blueCoreHP -= speed * dt * 14;
+        if (blueCoreBody.position.y < 0.45) blueCoreHP -= dt * 18;
+      }
+    }
+    if (redCoreMesh && redCoreBody) {
+      redCoreMesh.position.copy(redCoreBody.position);
+      redCoreMesh.rotation.y -= dt * 1.8;
+      if (netMode !== 'guest') {
+        const speed = redCoreBody.velocity.length();
+        if (speed > 1.4) redCoreHP -= speed * dt * 16;
+        if (redCoreBody.position.y < 0.45) redCoreHP -= dt * 20;
+      }
+    }
+
+    if (netMode === 'host') {
+      syncAccumulator += dt;
+      if (syncAccumulator >= 0.15) {
+        syncAccumulator = 0;
+        sendNet({ type: 'stateSync', blueHP: blueCoreHP, redHP: redCoreHP, points: raidSystem.points });
+      }
+      unitSyncAcc += dt;
+      if (unitSyncAcc >= 0.1) {
+        unitSyncAcc = 0;
+        const snap = units.filter(u => !u.dying).map(u => ({
+          id: u.id, team: u.team, type: u.type, x: u.x, z: u.z, hp: u.hp
+        }));
+        sendNet({ type: 'unitSync', units: snap });
+      }
+    }
+
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const p = projectiles[i];
+      p.age += dt;
+      p.mesh.position.copy(p.body.position);
+
+      const wData = weapons[p.weaponKey];
+
+      if (p.weaponKey === 'cannon' && p.body.position.y < 1.8) {
+        const enemyTeam = p.owner === 'blue' ? 'red' : 'blue';
+        for (const u of units) {
+          if (!u.dying && u.team === enemyTeam) {
+            if (Math.hypot(u.x - p.body.position.x, u.z - p.body.position.z) < 0.65) {
+              damageUnit(u, 120, new THREE.Vector3(p.body.velocity.x * 0.4, 6, p.body.velocity.z * 0.4));
+            }
+          }
+        }
+        // Direct cannon hit on enemy Barracks/walls
+        const targetPieces = enemyTeam === 'blue' ? bluePieces : redPieces;
+        for (let k = targetPieces.length - 1; k >= 0; k--) {
+          if (targetPieces[k].position.distanceTo(p.body.position) < 1.35) {
+            damageStructurePiece(enemyTeam, k, 45, p.owner);
+            p.age = 5.0;
+            break;
+          }
+        }
+      }
+
+      if (!p.detonated && wData.blastRadius > 0 && p.age > 0.35 && (p.body.position.y <= 0.6 || p.body.velocity.length() < 4.5)) {
+        p.detonated = true;
+        triggerBlast(p.body.position, wData.blastRadius, wData.blastForce, p.owner);
+      }
+
+      if (p.age > 4.5) {
+        scene.remove(p.mesh);
+        world.removeBody(p.body);
+        projectiles.splice(i, 1);
+      }
+    }
+
+    for (let i = effects.length - 1; i >= 0; i--) {
+      const ef = effects[i];
+      ef.age += dt;
+      const scale = 1 + (ef.age / ef.maxAge) * 7;
+      ef.mesh.scale.set(scale, scale, 1);
+      ef.mesh.material.opacity = Math.max(0, 1 - ef.age / ef.maxAge);
+      if (ef.age >= ef.maxAge) {
+        scene.remove(ef.mesh);
+        effects.splice(i, 1);
+      }
+    }
+
+    const myHP = myTeam === 'blue' ? blueCoreHP : redCoreHP;
+    const enemyHP = myTeam === 'blue' ? redCoreHP : blueCoreHP;
+
+    if (enemyHP <= 0) {
+      awardAttackPoints(myTeam, 250);
+      endMatch('🏆 Camp Conquered!', 'You neutralized the enemy Command Core and claimed +250 bonus points!');
+    } else if (myHP <= 0) {
+      endMatch('💥 Base Overrun', 'Your Command Core fell to the raid.');
+    }
+
+    updateHUD();
+  }
+
+  if (controls.target.y < 0.5) controls.target.y = 0.5;
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+Object.assign(window, {
+  handleFriendWsConnect,
+  syncMyBaseToServer,
+  hostOnlineMatch,
+  joinOnlineMatch,
+  resetMatch,
+  launchManualPlayerRaid,
+  switchBuildTab,
+  buySquad,
+  removeSquad,
+  setFormation,
+  setStance,
+  clearRally,
+  setShape,
+  setMaterial,
+  updateSize,
+  spawnPiece,
+  refundSelected,
+  loadTemplate,
+  saveStructure,
+  selectWeapon,
+  updatePower,
+  fireSelectedWeapon
+});
+
+init();
+animate(0);
+</script>
+</body>
+</html>
